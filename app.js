@@ -913,10 +913,19 @@ function setupEventListeners() {
     });
   });
 
-  // Central bottom '+' button opens modal
+  // Bottom 'Registrar' button opens registration modal
   const btnBottomReg = document.getElementById('btn-bottom-register');
   if (btnBottomReg) {
     btnBottomReg.addEventListener('click', () => openModal('modal-register'));
+  }
+
+  // Bottom 'Cuenta' button triggers login / account actions
+  const btnBottomAuth = document.getElementById('btn-bottom-auth');
+  if (btnBottomAuth) {
+    btnBottomAuth.addEventListener('click', () => {
+      const authBtn = document.getElementById('btn-auth-action');
+      if (authBtn) authBtn.click();
+    });
   }
 
   // Live round options menu (⋯)
@@ -3767,6 +3776,9 @@ function handleAuthStateChange(session) {
     
     emailDisplay.textContent = session.user.email;
     emailDisplay.style.display = 'inline-block';
+
+    const bottomAuthLabel = document.getElementById('bottom-auth-label');
+    if (bottomAuthLabel) bottomAuthLabel.textContent = 'Perfil';
     
     syncLocalDataToCloud();
   } else {
@@ -3775,6 +3787,9 @@ function handleAuthStateChange(session) {
     authBtn.classList.remove('hover-red');
     
     emailDisplay.style.display = 'none';
+
+    const bottomAuthLabel = document.getElementById('bottom-auth-label');
+    if (bottomAuthLabel) bottomAuthLabel.textContent = 'Cuenta';
   }
   
   loadData();
