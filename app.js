@@ -3082,6 +3082,51 @@ function renderCardComparisonTable(round, companion) {
     }
   });
   tableHtml += `<td class="bg-gray font-bold" style="font-size: 0.72rem; white-space: nowrap;">${userWon}W - ${compWon}L - ${tied}T</td></tr>`;
+
+  // 5. Cumulative Stroke Difference Row
+  tableHtml += '<tr><td class="row-label text-muted font-bold" style="font-size: 0.68rem;">Dif. Acumulada</td>';
+  let cumUser = 0;
+  let cumComp = 0;
+  let hasValidCum = false;
+  playedIndices.forEach(i => {
+    const s = userStrokes[i] || 0;
+    const cs = compStrokes[i] || 0;
+    if (s > 0 && cs > 0) {
+      cumUser += s;
+      cumComp += cs;
+      hasValidCum = true;
+      const diff = cumUser - cumComp;
+      if (diff < 0) {
+        // User leading by |diff| strokes (fewer strokes is better in golf)
+        tableHtml += `<td style="color: #10b981; font-weight: 800; font-size: 0.76rem;">${diff}</td>`;
+      } else if (diff > 0) {
+        // User trailing by diff strokes
+        tableHtml += `<td style="color: #f87171; font-weight: 800; font-size: 0.76rem;">+${diff}</td>`;
+      } else {
+        // All even
+        tableHtml += '<td style="color: #94a3b8; font-weight: 700; font-size: 0.76rem;">E</td>';
+      }
+    } else {
+      tableHtml += '<td style="color: var(--text-muted);">-</td>';
+    }
+  });
+
+  if (hasValidCum) {
+    const finalDiff = cumUser - cumComp;
+    let finalColor = '#94a3b8';
+    let finalText = 'E';
+    if (finalDiff < 0) {
+      finalColor = '#10b981';
+      finalText = `${finalDiff}`;
+    } else if (finalDiff > 0) {
+      finalColor = '#f87171';
+      finalText = `+${finalDiff}`;
+    }
+    tableHtml += `<td class="bg-gray-dark font-extrabold" style="color: ${finalColor}; font-size: 0.78rem;">${finalText}</td></tr>`;
+  } else {
+    tableHtml += '<td class="bg-gray font-bold">-</td></tr>';
+  }
+
   tableHtml += '</tbody></table>';
 
   // Summary box
@@ -3369,7 +3414,64 @@ function renderLiveHole() {
   }
 
   updateLiveScoreSummary();
+  renderLiveHolesTopStrip();
   renderLiveJumperGrid();
+}
+
+function renderLiveHolesTopStrip() {
+  const strip = document.getElementById('live-holes-top-strip');
+  if (!strip || !liveHolesList) return;
+  strip.innerHTML = '';
+
+  liveHolesList.forEach((idx, listIdx) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-live-strip-hole';
+
+    const holeNum = idx + 1;
+    let badgeText = '';
+
+    if (liveStrokes[idx] > 0) {
+      const par = (liveCourse && liveCourse.holesPar && liveCourse.holesPar[idx]) || 4;
+      const diff = (liveStrokes[idx] + (livePenalties[idx] || 0)) - par;
+      badgeText = diff === 0 ? 'E' : (diff > 0 ? '+' + diff : `${diff}`);
+    } else {
+      const par = (liveCourse && liveCourse.holesPar && liveCourse.holesPar[idx]) || 4;
+      badgeText = `P${par}`;
+    }
+
+    btn.innerHTML = `<span class="strip-hole-num">${holeNum}</span><span class="strip-hole-badge">${badgeText}</span>`;
+
+    if (listIdx === liveCurrentIndex) {
+      btn.classList.add('current');
+    } else if (liveStrokes[idx] > 0) {
+      btn.classList.add('played');
+    } else if (listIdx < liveCurrentIndex) {
+      btn.classList.add('missing');
+    }
+
+    btn.addEventListener('click', () => {
+      const prevIdx = liveHolesList[liveCurrentIndex];
+      if (liveHoleStartTime) {
+        liveHolesDuration[prevIdx] += (Date.now() - liveHoleStartTime);
+      }
+      liveHoleStartTime = Date.now();
+
+      liveCurrentIndex = listIdx;
+      renderLiveHole();
+      saveLiveRoundState();
+    });
+
+    strip.appendChild(btn);
+  });
+
+  // Center the active hole in the horizontal strip
+  requestAnimationFrame(() => {
+    const activeBtn = strip.querySelector('.btn-live-strip-hole.current');
+    if (activeBtn) {
+      activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  });
 }
 
 function updateLiveScoreSummary() {
@@ -4606,7 +4708,8 @@ function updateCurrentHoleDisplay() {
   // 3. Totals summary
   updateLiveScoreSummary();
 
-  // 4. Hole jumper map
+  // 4. Hole jumper map & top strip
+  renderLiveHolesTopStrip();
   renderLiveJumperGrid();
 
   // 5. Multiplayer tabs

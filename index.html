@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- CSS Stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=108">
+  <link rel="stylesheet" href="styles.css?v=109">
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Supabase JS Client CDN -->
@@ -336,6 +336,11 @@
           <!-- Multiplayer Player Tabs -->
           <div id="live-multiplayer-tabs" style="display: none; flex-wrap: wrap; gap: 0.4rem; justify-content: center; width: 100%; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; padding-left: 1rem; padding-right: 1rem; margin-top: -0.5rem;">
             <!-- Populated dynamically -->
+          </div>
+
+          <!-- Quick Horizontal Hole Selector Strip (Always visible, scrollable 9 & 18 holes) -->
+          <div class="live-holes-strip-container" id="live-holes-strip-container">
+            <div class="live-holes-strip" id="live-holes-top-strip"></div>
           </div>
           
           <!-- 3-Circle Display (Hoyo, Par, Golpes) -->
@@ -965,7 +970,7 @@
   </div>
 
   <!-- JavaScript Application -->
-  <script src="app.js?v=108"></script>
+  <script src="app.js?v=109"></script>
 
 
 
