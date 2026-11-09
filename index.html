@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Golf Tracker - Registro y Handicap</title>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="styles.css?v=105">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Supabase JS Client CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-area">
+        <span class="logo-emoji">🏌️‍♂️</span>
+        <div>
+          <h1>Golf Tracker</h1>
+          <p class="subtitle">Evolución de Juego & Handicap Index</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <!-- Cloud Auth Info -->
+        <span class="user-email-display text-muted" id="user-email-display" style="display: none; font-size: 0.75rem; font-weight: 600;"></span>
+        <button class="btn btn-outline btn-xs" id="btn-auth-action">
+          Iniciar Sesión
+        </button>
+        <button class="btn btn-primary" id="btn-open-register">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          Registrar Salida
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Navigation Tabs -->
+    <nav class="main-nav">
+      <div class="nav-tabs-left">
+        <button class="nav-tab active" data-tab="dashboard">Dashboard</button>
+        <button class="nav-tab" data-tab="history">Historial de Salidas</button>
+        <button class="nav-tab" data-tab="live">⛳ Empezar Salida</button>
+      </div>
+    </nav>
+
+    <!-- Tab Pane 1: Dashboard -->
+    <div id="tab-pane-dashboard" class="tab-pane active" style="margin-top: 0.5rem;">
+      <!-- Dashboard sub-navigation -->
+      <div class="sub-nav-tabs" style="display: flex; gap: 0.35rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; width: 100%;">
+        <button class="sub-tab-btn active" data-subtab="summary" style="background: none; border: none; color: #fff; padding: 0.4rem 0.8rem; border-radius: 0.35rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all var(--transition-speed);">Resumen</button>
+        <button class="sub-tab-btn" data-subtab="analysis" style="background: none; border: none; color: var(--text-muted); padding: 0.4rem 0.8rem; border-radius: 0.35rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all var(--transition-speed);">Análisis de Juego</button>
+        <button class="sub-tab-btn" data-subtab="achievements" style="background: none; border: none; color: var(--text-muted); padding: 0.4rem 0.8rem; border-radius: 0.35rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all var(--transition-speed);">Mis Logros</button>
+      </div>
+
+      <!-- Subtab Pane: Summary -->
+      <div id="subtab-pane-summary" class="subtab-pane active" style="display: flex; flex-direction: column;">
+        <!-- KPIs Grid -->
+        <section class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <span class="kpi-title">Handicap Index</span>
+              <div class="info-tooltip-container">
+                <span class="info-trigger">ℹ️</span>
+                <div class="info-tooltip">Tu Handicap Index oficial estimado según las normas de la WHS (promedio de tus mejores 8 diferenciales de las últimas 20 salidas).</div>
+              </div>
+            </div>
+            <div class="kpi-value" id="val-hcp">N/A</div>
+            <div class="kpi-footer" id="footer-hcp">Ingresá salidas para calcular</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <span class="kpi-title">Rondas Jugadas</span>
+            </div>
+            <div class="kpi-value" id="val-rounds">0</div>
+            <div class="kpi-footer" id="footer-rounds">No hay registros</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <span class="kpi-title">Mejor Ronda (9 Hoyos)</span>
+            </div>
+            <div class="kpi-value" id="val-best">N/A</div>
+            <div class="kpi-footer" id="footer-best">-</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <span class="kpi-title">Promedio (9 Hoyos)</span>
+            </div>
+            <div class="kpi-value" id="val-avg">N/A</div>
+            <div class="kpi-footer">Regularidad de juego</div>
+          </div>
+        </section>
+
+        <!-- Chart Card (Full Width) -->
+        <main class="chart-section card full-width" style="margin-top: 1.5rem;">
+          <div class="card-header">
+            <div>
+              <h2>Evolución de Juego</h2>
+              <p>Monitoreo temporal de tu score y handicap index</p>
+            </div>
+            <div class="chart-tabs">
+              <button class="tab-btn active" data-chart="hcp">Handicap Index</button>
+              <button class="tab-btn" data-chart="strokes">Golpes vs Par</button>
+            </div>
+          </div>
+          <div class="card-body chart-container">
+            <canvas id="evolutionChart"></canvas>
+            <div class="empty-state-chart" id="empty-chart-msg">
+              <span class="empty-icon">📈</span>
+              <p>Registrá tus primeras salidas para ver los gráficos evolutivos.</p>
+            </div>
+          </div>
+          
+          <!-- Explanatory note for Handicap & Differential -->
+          <div style="margin: 0 1.5rem 1.5rem 1.5rem; padding: 1rem; background-color: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 0.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; text-align: left;">
+            <div>
+              <h4 style="font-size: 0.7rem; color: #fbbf24; text-transform: uppercase; margin: 0 0 0.25rem 0; font-weight: 700; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem;">🏆 Handicap Index</h4>
+              <p style="font-size: 0.65rem; color: var(--text-muted); line-height: 1.4; margin: 0;">Nivel de habilidad promedio según la WHS. Se calcula promediando los <strong>mejores 8 diferenciales</strong> de tus últimas 20 salidas.</p>
+            </div>
+            <div>
+              <h4 style="font-size: 0.7rem; color: #60a5fa; text-transform: uppercase; margin: 0 0 0.25rem 0; font-weight: 700; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.35rem;">📊 Diferencial de Juego</h4>
+              <p style="font-size: 0.65rem; color: var(--text-muted); line-height: 1.4; margin: 0;">Calibra el rendimiento de una ronda específica ajustando tus golpes según la dificultad (Rating y Slope) de la cancha.</p>
+            </div>
+          </div>
+        </main>
+
+        <!-- Performance Stats Section -->
+        <section class="performance-section card full-width" style="margin-top: 1.5rem;">
+          <div class="card-header">
+            <div>
+              <h2>Distribución de Scores & Estadísticas Avanzadas</h2>
+              <p>Análisis detallado de tu regularidad, aciertos de fairway y putts</p>
+            </div>
+          </div>
+          <div class="card-body" style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <div>
+              <span class="form-label" style="display: block; margin-bottom: 0.5rem;">Porcentaje de Scores</span>
+              <div class="score-distribution-bar" id="score-dist-bar"></div>
+              <div class="score-distribution-legend" id="score-dist-legend"></div>
+            </div>
+            <div class="advanced-stats-summary-row" id="adv-stats-summary" style="border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+              <!-- Loaded dynamically -->
+            </div>
+          </div>
+        </section>
+
+        <!-- Achievements Section -->
+        <section class="achievements-section card full-width" style="margin-top: 1.5rem;">
+          <div class="card-header">
+            <div>
+              <h2>🏆 Logros & Récords Personales</h2>
+              <p>Hitos y récords desbloqueados en tu historial de juego</p>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="achievements-grid" id="achievements-container">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </section>
+      </div> <!-- End subtab-pane-summary -->
+
+      <!-- Subtab Pane: Analysis -->
+      <div id="subtab-pane-analysis" class="subtab-pane" style="display: none; flex-direction: column; gap: 1.5rem; width: 100%;">
+        <!-- Card 4: Detailed Course & Hole Analysis -->
+        <div class="card" style="padding: 1.25rem; width: 100%; margin-top: 1.5rem;">
+          <div class="card-header" style="margin-bottom: 1.25rem; border: none; padding: 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+            <div>
+              <h3 style="font-size: 0.95rem; font-weight: 700; color: #fff;">Análisis de Rendimiento por Cancha y Hoyo</h3>
+              <p class="subtitle" style="font-size: 0.65rem;">Evolución de golpes y promedios detallados por hoyo individual</p>
+            </div>
+            <!-- Filters for detailed analysis -->
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <select id="analysis-course-select" class="form-control" style="font-size: 0.7rem; padding: 0.35rem 0.5rem; max-width: 150px; height: 1.8rem; background-color: rgba(0, 0, 0, 0.25); border-color: rgba(255,255,255,0.08); color: #fff;">
+                <!-- Dynamically populated -->
+              </select>
+              <select id="analysis-nine-select" class="form-control" style="font-size: 0.7rem; padding: 0.35rem 0.5rem; width: 110px; height: 1.8rem; background-color: rgba(0, 0, 0, 0.25); border-color: rgba(255,255,255,0.08); color: #fff;">
+                <option value="both">Ambos (18H)</option>
+                <option value="front">Ida (H1-H9)</option>
+                <option value="back">Vuelta (H10-18)</option>
+              </select>
+            </div>
+          </div>
+          
+          <!-- Analysis Panels -->
+          <div id="course-analysis-content" style="display: none; flex-direction: column; gap: 1.5rem; width: 100%;">
+            <!-- Top Panel: Average Score vs Par -->
+            <div style="background-color: rgba(255,255,255,0.01); border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 1rem; width: 100%;">
+              <h4 style="font-size: 0.75rem; color: #fff; font-weight: 700; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em;">Promedio de Golpes vs Par</h4>
+              <div style="position: relative; height: 260px; width: 100%;">
+                <canvas id="chart-hole-averages"></canvas>
+              </div>
+            </div>
+            
+            <!-- Bottom Panel: Hole Evolution Grid -->
+            <div style="background-color: rgba(255,255,255,0.01); border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 1rem; width: 100%;">
+              <h4 style="font-size: 0.75rem; color: #fff; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; margin: 0 0 1rem 0;">Evolución Histórica por Hoyo</h4>
+              <div id="hole-evolution-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; width: 100%;">
+                <!-- Dynamically populated with 9 or 18 mini line charts -->
+              </div>
+            </div>
+          </div>
+          
+          <!-- Empty State -->
+          <div id="course-analysis-empty" style="text-align: center; padding: 2rem 0; color: var(--text-muted);">
+            <span style="font-size: 2rem; display: block; margin-bottom: 0.5rem;">⛳</span>
+            <p style="font-size: 0.75rem; margin: 0;">Seleccioná una cancha para analizar tu rendimiento por hoyo.</p>
+          </div>
+        </div>
+        <!-- Card 5: Time Evolution Analysis -->
+        <div class="card" style="padding: 1.25rem; width: 100%; margin-top: 1rem;">
+          <div class="card-header" style="margin-bottom: 1.25rem; border: none; padding: 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+            <div>
+              <h3 style="font-size: 0.95rem; font-weight: 700; color: #fff;">⏱️ Evolución de Tiempos de Juego</h3>
+              <p class="subtitle" style="font-size: 0.65rem;">Monitoreo de duración por salida a misma cantidad de hoyos</p>
+            </div>
+            <div style="display: flex; gap: 0.35rem; align-items: center;" class="time-holes-filter-container">
+              <button type="button" class="btn-xs-template active" id="btn-time-filter-9" data-holes="9">9 Hoyos</button>
+              <button type="button" class="btn-xs-template" id="btn-time-filter-18" data-holes="18">18 Hoyos</button>
+            </div>
+          </div>
+
+          <!-- Time KPI row -->
+          <div id="time-analysis-kpis" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1.25rem;">
+            <div class="kpi-card" style="padding: 0.75rem; text-align: center; background: rgba(15, 23, 42, 0.4); border: 1px solid rgba(255,255,255,0.04); border-radius: 0.5rem;">
+              <span style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.25rem;">Tiempo Promedio</span>
+              <strong id="kpi-time-avg" style="font-size: 1.2rem; color: #38bdf8; font-weight: 800;">-</strong>
+            </div>
+            <div class="kpi-card" style="padding: 0.75rem; text-align: center; background: rgba(15, 23, 42, 0.4); border: 1px solid rgba(255,255,255,0.04); border-radius: 0.5rem;">
+              <span style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.25rem;">Récord Más Rápido</span>
+              <strong id="kpi-time-min" style="font-size: 1.2rem; color: #34d399; font-weight: 800;">-</strong>
+            </div>
+            <div class="kpi-card" style="padding: 0.75rem; text-align: center; background: rgba(15, 23, 42, 0.4); border: 1px solid rgba(255,255,255,0.04); border-radius: 0.5rem;">
+              <span style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.25rem;">Tiempo Máximo</span>
+              <strong id="kpi-time-max" style="font-size: 1.2rem; color: #fbbf24; font-weight: 800;">-</strong>
+            </div>
+          </div>
+
+          <!-- Time Evolution Chart -->
+          <div id="time-analysis-chart-container" style="background-color: rgba(255,255,255,0.01); border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 1rem; width: 100%;">
+            <div style="position: relative; height: 220px; width: 100%;">
+              <canvas id="chart-time-evolution"></canvas>
+            </div>
+          </div>
+
+          <!-- Empty State -->
+          <div id="time-analysis-empty" style="display: none; text-align: center; padding: 2rem 0; color: var(--text-muted);">
+            <span style="font-size: 2rem; display: block; margin-bottom: 0.5rem;">⏱️</span>
+            <p style="font-size: 0.75rem; margin: 0;">No hay registros de tiempo para las salidas seleccionadas.<br>Jugá desde "Empezar Salida" para cronometrar tus tiempos automáticamente.</p>
+          </div>
+        </div>
+      </div> <!-- End subtab-pane-analysis -->
+
+      <!-- Subtab Pane: Achievements -->
+      <div id="subtab-pane-achievements" class="subtab-pane" style="display: none; flex-direction: column; gap: 1rem; width: 100%;">
+        <div class="card" style="padding: 1.25rem; width: 100%;">
+          <h3 style="font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 0.25rem;">Mis Trofeos y Logros</h3>
+          <p class="subtitle" style="font-size: 0.65rem; margin-bottom: 1.25rem;">Hitos deportivos desbloqueados en tus partidas</p>
+          <div class="achievements-grid" id="achievements-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 1rem; width: 100%;">
+            <!-- Dynamic achievements populated in JS -->
+          </div>
+        </div>
+      </div> <!-- End subtab-pane-achievements -->
+    </div>
+
+    <div id="tab-pane-live" class="tab-pane" style="margin-top: 0.5rem;">
+      <div id="live-setup-view" class="card max-w-md mx-auto" style="margin: 0 auto; max-width: 480px;">
+        <div class="card-header" style="text-align: center; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+          <h2>⛳ Iniciar Salida</h2>
+          <p>Creá una nueva partida o unite a la de un amigo</p>
+          
+          <!-- Segmented Tab Selector -->
+          <div style="display: flex; background-color: rgba(0, 0, 0, 0.25); padding: 0.25rem; border-radius: 0.5rem; margin-top: 1rem; border: 1px solid var(--border-color);">
+            <button type="button" id="tab-btn-create-game" class="sub-tab-btn active" style="flex: 1; padding: 0.5rem; text-align: center; border-radius: 0.35rem; font-weight: 700; font-size: 0.75rem; border: none; cursor: pointer; transition: all var(--transition-speed); background-color: var(--border-color); color: #fff;">⛳ Crear Partida</button>
+            <button type="button" id="tab-btn-join-game" class="sub-tab-btn" style="flex: 1; padding: 0.5rem; text-align: center; border-radius: 0.35rem; font-weight: 700; font-size: 0.75rem; border: none; cursor: pointer; transition: all var(--transition-speed); background-color: transparent; color: var(--text-muted);">👥 Unirse con Código</button>
+          </div>
+        </div>
+        
+        <div class="card-body" style="padding: 1.5rem; display: flex; flex-direction: column;">
+          <!-- Lobby Recovery Card -->
+          <div id="lobby-recovery-card" style="display: none; border: 1px solid rgba(245, 158, 11, 0.35); background-color: rgba(245, 158, 11, 0.05); margin-bottom: 1.25rem; padding: 1rem; border-radius: 0.5rem; text-align: center; flex-direction: column; align-items: center; width: 100%;">
+            <span style="font-size: 1.5rem; display: block; margin-bottom: 0.25rem;">⚠️</span>
+            <h4 style="font-size: 0.8rem; font-weight: 700; color: #fbbf24; text-transform: uppercase; margin-bottom: 0.25rem;">Partida Pendiente</h4>
+            <p style="font-size: 0.7rem; color: var(--text-muted); margin: 0 0 0.75rem 0; line-height: 1.35;">Tenés una ronda en curso en <strong id="recovery-course-name" style="color: #fff;">-</strong> (Código: <strong id="recovery-lobby-code" style="color: #fff;">-</strong>).</p>
+            <div style="display: flex; gap: 0.5rem; justify-content: center; width: 100%;">
+              <button type="button" class="btn btn-xs" id="btn-recovery-resume" style="background-color: #f59e0b; color: #000; font-weight: 700; font-size: 0.7rem; padding: 0.35rem 0.75rem; flex: 1; border: none; border-radius: 0.25rem; cursor: pointer;">Reanudar</button>
+              <button type="button" class="btn btn-xs btn-outline" id="btn-recovery-dismiss" style="font-size: 0.7rem; padding: 0.35rem 0.75rem; border-color: rgba(255,255,255,0.15); flex: 1; border-radius: 0.25rem; cursor: pointer;">Descartar</button>
+            </div>
+          </div>
+
+          <!-- Panel A: Create Game -->
+          <div id="panel-create-game" style="display: flex; flex-direction: column; gap: 1.25rem; width: 100%;">
+            <div class="form-group">
+              <label for="live-course-select" class="form-label">Seleccioná la Cancha</label>
+              <select id="live-course-select" class="form-control">
+                <!-- Loaded dynamically -->
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Modalidad de Salida</label>
+              <div class="modalidad-selector">
+                <button type="button" class="btn-live-mode active" data-mode="front">9 Hoyos (Ida)</button>
+                <button type="button" class="btn-live-mode" data-mode="back">9 Hoyos (Vuelta)</button>
+                <button type="button" class="btn-live-mode" data-mode="full">18 Hoyos</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tee de Salida (Distancias & Slope)</label>
+              <div class="tee-selector-group" id="live-tee-selector">
+                <button type="button" class="btn-tee-select active" data-tee="white"><span class="tee-dot tee-white"></span> Blancas</button>
+                <button type="button" class="btn-tee-select" data-tee="blue"><span class="tee-dot tee-blue"></span> Azules</button>
+                <button type="button" class="btn-tee-select" data-tee="red"><span class="tee-dot tee-red"></span> Rojas</button>
+              </div>
+            </div>
+            <button type="button" class="btn btn-primary btn-block" id="btn-start-live-round" style="margin-top: 1.5rem; background: linear-gradient(90deg, var(--color-primary) 0%, #059669 100%);">
+              Iniciar Ronda
+            </button>
+            <button type="button" class="btn btn-secondary btn-block" id="btn-start-multiplayer-round" style="margin-top: 0.5rem; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: #fff; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);">
+              👥 Jugar con Amigo
+            </button>
+          </div>
+
+          <!-- Panel B: Join Game by Code -->
+          <div id="panel-join-game" style="display: none; flex-direction: column; gap: 1.25rem; width: 100%; padding-top: 0.5rem;">
+            <p style="text-align: center; color: var(--text-muted); font-size: 0.725rem; margin: 0 0 0.5rem 0; line-height: 1.4;">
+              Pedile el código de 4 dígitos (ej: G-A9F3) a tu amigo para sincronizar las tarjetas y jugar juntos en tiempo real.
+            </p>
+            <div class="form-group">
+              <label for="join-lobby-input-id" class="form-label" style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; text-align: center; display: block; margin-bottom: 0.75rem;">Código de la Ronda</label>
+              <input type="text" id="join-lobby-input-id" class="form-control" placeholder="CÓDIGO (ej: G-A9F3)" style="font-family: monospace; font-size: 1.25rem; font-weight: 800; text-transform: uppercase; text-align: center; letter-spacing: 0.1em; border-color: rgba(255, 255, 255, 0.08); background-color: rgba(0, 0, 0, 0.25); height: 3.2rem; border-radius: 0.5rem; outline: none; transition: border-color 0.2s;">
+            </div>
+            <button type="button" class="btn btn-primary btn-block" id="btn-join-lobby-by-id" style="margin-top: 1rem; background: linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%); color: #fff; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25); font-weight: 700; font-size: 0.85rem; height: 2.8rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; border: none; border-radius: 0.375rem; cursor: pointer;">
+              👥 Conectarse a la Ronda
+            </button>
+          </div>
+        </div></div>
+
+      <div id="live-tracker-view" class="card max-w-md mx-auto" style="display: none; margin: 0 auto; max-width: 480px;">
+        <div class="card-header" style="border-bottom: 1px solid var(--border-color); padding: 1.15rem 1.25rem 0.9rem 1.25rem;">
+          <!-- Titulo a todo lo ancho -->
+          <h2 id="live-track-course-name" style="width: 100%; font-size: 1.25rem; font-weight: 800; color: #ffffff; margin: 0 0 0.65rem 0; letter-spacing: -0.01em; line-height: 1.25;">Cancha Activa</h2>
+          
+          <!-- Fila de Tarjetas (Tiempo, Codigo, Invitar, Score) -->
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+              <!-- Tarjeta de Tiempo -->
+              <div class="live-header-pill live-timer-pill" id="live-track-timer-container">
+                <span style="font-size: 0.75rem;">⏱️</span>
+                <span id="live-track-timer" style="color: #60a5fa; font-family: monospace; font-size: 0.82rem; font-weight: 700;">00:00</span>
+              </div>
+              <!-- Codigo de Partida -->
+              <span id="live-lobby-code-badge" class="live-header-pill live-code-pill" style="display: none;" title="Copiar invitación">CÓDIGO: -</span>
+              <!-- Boton Invitar -->
+              <button type="button" id="btn-live-share-lobby" class="btn live-header-pill live-invite-pill" style="display: none;">👥 Invitar</button>
+            </div>
+            <!-- Marcador Diferencial -->
+            <div class="live-score-badge" id="live-score-relative-badge">E</div>
+          </div>
+        </div>
+        <div class="card-body" style="padding: 1.5rem 0 6rem 0; display: flex; flex-direction: column; gap: 1.25rem; align-items: center;">
+          
+          <!-- Multiplayer Player Tabs -->
+          <div id="live-multiplayer-tabs" style="display: none; flex-wrap: wrap; gap: 0.4rem; justify-content: center; width: 100%; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; padding-left: 1rem; padding-right: 1rem; margin-top: -0.5rem;">
+            <!-- Populated dynamically -->
+          </div>
+          
+          <!-- 3-Circle Display (Hoyo, Par, Golpes) -->
+          <!-- Hole Meta Strip (Tee Distance & Stroke Index) -->
+          <div id="live-hole-meta-strip" style="display: flex; gap: 0.5rem; align-items: center; justify-content: center; flex-wrap: wrap; margin-bottom: -0.25rem;">
+            <!-- Populated dynamically -->
+          </div>
+
+          <div class="live-hole-display-container">
+            <!-- Circle 1: Hoyo -->
+            <div class="live-hole-circle" id="circle-hole">
+              <span class="circle-label">Hoyo</span>
+              <span class="circle-val" id="live-current-hole-num">1</span>
+            </div>
+            <!-- Circle 2: Par -->
+            <div class="live-hole-circle" id="circle-par">
+              <span class="circle-label">Par</span>
+              <span class="circle-val" id="live-current-hole-par-val">4</span>
+            </div>
+            <!-- Circle 3: Golpes -->
+            <div class="live-hole-circle" id="circle-strokes">
+              <span class="circle-label">Golpes</span>
+              <span class="circle-val" id="live-current-hole-strokes-val">0</span>
+            </div>
+          </div>
+
+          <!-- Resumen de Salida Activa (Total Strokes, Cumulative Par, Differential) -->
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; width: 100%; max-width: 380px; background-color: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 0.6rem; text-align: center; margin-top: -0.25rem; margin-bottom: 0.5rem;">
+            <div>
+              <span style="font-size: 0.55rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.03em; display: block; margin-bottom: 0.15rem;">Golpes Totales</span>
+              <strong id="live-summary-total-strokes" style="font-size: 1.1rem; color: #fff; font-weight: 800;">0</strong>
+            </div>
+            <div style="border-left: 1px solid var(--border-color); border-right: 1px solid var(--border-color);">
+              <span style="font-size: 0.55rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.03em; display: block; margin-bottom: 0.15rem;">Par Acumulado</span>
+              <strong id="live-summary-total-par" style="font-size: 1.1rem; color: #fff; font-weight: 800;">0</strong>
+            </div>
+            <div>
+              <span style="font-size: 0.55rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.03em; display: block; margin-bottom: 0.15rem;">Diferencial</span>
+              <strong id="live-summary-diff" style="font-size: 1.1rem; color: #fff; font-weight: 800;">E</strong>
+            </div>
+          </div>
+
+          <!-- Golpes Control (Top, Centered) -->
+          <div class="live-control-group" style="margin-bottom: 0.5rem;">
+            <span class="live-control-label">Golpes (Strokes)</span>
+            <div class="live-control-buttons">
+              <button type="button" class="btn-live-ctrl decrease" id="btn-live-stroke-dec">&minus;</button>
+              <span class="live-control-value" id="live-stroke-val">4</span>
+              <button type="button" class="btn-live-ctrl increase" id="btn-live-stroke-inc">&plus;</button>
+            </div>
+          </div>
+
+          <!-- Row for Putts and Penalties (Side-by-Side) -->
+          <div class="live-controls-row">
+            <!-- Putts Control (Left) -->
+            <div class="live-control-group">
+              <span class="live-control-label">Putts</span>
+              <div class="live-control-buttons compact">
+                <button type="button" class="btn-live-ctrl decrease compact" id="btn-live-putt-dec">&minus;</button>
+                <span class="live-control-value compact" id="live-putt-val">2</span>
+                <button type="button" class="btn-live-ctrl increase compact" id="btn-live-putt-inc">&plus;</button>
+              </div>
+              <span class="help-text" style="font-size: 0.525rem; color: var(--text-muted); margin-top: 0.25rem; font-style: italic; opacity: 0.75; text-align: center; display: block;">*Informativos (no suman)</span>
+            </div>
+
+            <!-- Tiros de Multa Control (Right) -->
+            <div class="live-control-group">
+              <span class="live-control-label">Multas</span>
+              <div class="live-control-buttons compact">
+                <button type="button" class="btn-live-ctrl decrease compact" id="btn-live-penalty-dec">&minus;</button>
+                <span class="live-control-value compact" id="live-penalty-val">0</span>
+                <button type="button" class="btn-live-ctrl increase compact" id="btn-live-penalty-inc">&plus;</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hole Navigation -->
+          <div class="live-navigation-row" style="width: 100%; display: flex; justify-content: space-between; gap: 1rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem; margin-top: 1rem;">
+            <button type="button" class="btn btn-outline" id="btn-live-prev-hole" style="flex: 1;">◀ Anterior</button>
+            <button type="button" class="btn btn-primary" id="btn-live-next-hole" style="flex: 1;">Siguiente ▶</button>
+          </div>
+
+          <!-- Hole Grid Quick Jumper -->
+          <div style="width: 100%; border-top: 1px dashed var(--border-color); padding-top: 1rem; margin-top: 0.5rem;">
+            <span class="form-label" style="display: block; margin-bottom: 0.5rem; font-size: 0.7rem; text-transform: uppercase;">Mapa de Hoyos</span>
+            <div class="live-holes-grid" id="live-holes-grid-jumper"></div>
+          </div>
+
+          <!-- End / Cancel Buttons -->
+          <div style="width: 100%; display: flex; gap: 0.75rem; margin-top: 1rem;">
+            <button type="button" class="btn btn-danger" id="btn-cancel-live-round" style="flex: 1;">
+              Cancelar
+            </button>
+            <button type="button" class="btn btn-primary" id="btn-finish-live-round" style="flex: 2; background: linear-gradient(90deg, var(--color-primary) 0%, #059669 100%);">
+              Terminar y Guardar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab Pane 2: History -->
+    <div id="tab-pane-history" class="tab-pane" style="margin-top: 0.5rem;">
+      <!-- Historial sub-navigation -->
+      <div class="sub-nav-tabs" style="display: flex; gap: 0.35rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; width: 100%;">
+        <button class="sub-tab-btn active" data-subtab="my-rounds" style="background: none; border: none; color: #fff; padding: 0.4rem 0.8rem; border-radius: 0.35rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all var(--transition-speed);">Mis Tarjetas</button>
+        <button class="sub-tab-btn" data-subtab="duelos" style="background: none; border: none; color: var(--text-muted); padding: 0.4rem 0.8rem; border-radius: 0.35rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all var(--transition-speed);">Duelos vs Amigos</button>
+      </div>
+
+      <!-- Subtab Pane: My Rounds -->
+      <div id="subtab-pane-my-rounds" class="subtab-pane active" style="display: flex; flex-direction: column;">
+        <section class="history-section card full-width">
+          <div class="card-header">
+            <div>
+              <h2>Historial de Salidas</h2>
+              <p>Detalle cronológico de las rondas jugadas</p>
+            </div>
+            <div class="history-tabs">
+              <button class="history-tab-btn" data-history="complete">18 Hoyos</button>
+              <button class="history-tab-btn active" data-history="partial">Parciales / 9H</button>
+            </div>
+          </div>
+          <div class="card-body p-0 table-responsive">
+            <div id="history-list" class="history-list"></div>
+            <div class="empty-state-table" id="empty-table-msg">
+              <span class="empty-icon">🏌️‍♂️</span>
+              <p>Aún no registraste ninguna salida.</p>
+              <button class="btn btn-outline btn-sm" id="btn-open-register-empty">Registrar Salida</button>
+            </div>
+          </div>
+        </section>
+      </div> <!-- End subtab-pane-my-rounds -->
+
+      <!-- Subtab Pane: Duelos vs Amigos -->
+      <div id="subtab-pane-duelos" class="subtab-pane" style="display: none; flex-direction: column; gap: 1.25rem;">
+        <div class="card" style="padding: 1.25rem; width: 100%;">
+          <h3 style="font-size: 0.95rem; font-weight: 700; color: #fff;">Comparativa Cara a Cara</h3>
+          <p class="subtitle" style="font-size: 0.65rem; margin-bottom: 1rem;">Seleccioná un compañero para ver tu historial de enfrentamientos</p>
+          <div class="form-group" style="max-width: 280px; margin-bottom: 1.25rem;">
+            <select id="select-duelo-friend" class="form-control" style="font-size: 0.75rem; padding: 0.4rem 0.6rem;">
+              <option value="">-- Seleccionar Amigo --</option>
+            </select>
+          </div>
+          
+          <!-- Duelo stats comparison dashboard -->
+          <div id="duelo-dashboard" style="display: none; flex-direction: column; gap: 1.25rem;">
+            <!-- Comparison KPI Grid -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 0.25rem;">
+              <!-- Score Badge -->
+              <div class="kpi-card" style="text-align: center; padding: 0.75rem; border-color: rgba(59, 130, 246, 0.25); background: rgba(15, 23, 42, 0.4);">
+                <span class="kpi-title" style="font-size: 0.625rem;">Historial Global (W - L - T)</span>
+                <div class="kpi-value" id="duelo-kpi-record" style="font-size: 1.5rem; margin: 0.15rem 0; color: #60a5fa;">0 - 0 - 0</div>
+                <div class="kpi-footer" id="duelo-kpi-record-desc" style="font-size: 0.625rem;">Sin registros compartidos</div>
+              </div>
+              <!-- Avg Difference -->
+              <div class="kpi-card" style="text-align: center; padding: 0.75rem; border-color: rgba(16, 185, 129, 0.25); background: rgba(15, 23, 42, 0.4);">
+                <span class="kpi-title" style="font-size: 0.625rem;">Diferencia Promedio</span>
+                <div class="kpi-value" id="duelo-kpi-diff" style="font-size: 1.5rem; margin: 0.15rem 0; color: #34d399;">-</div>
+                <div class="kpi-footer" id="duelo-kpi-diff-desc" style="font-size: 0.625rem;">de golpes por ronda</div>
+              </div>
+            </div>
+
+            <!-- Match Selector for Deep Analysis -->
+            <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.75rem;">
+                <div>
+                  <h4 style="font-size: 0.85rem; font-weight: 700; color: #fff; margin: 0;">Análisis Detallado de la Salida</h4>
+                  <p style="font-size: 0.65rem; color: var(--text-muted); margin: 0.15rem 0 0 0;">Comparativa de golpes, curva acumulada y hoyo a hoyo</p>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <label for="select-duelo-round" style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Partida:</label>
+                  <select id="select-duelo-round" class="form-control" style="font-size: 0.75rem; padding: 0.35rem 0.6rem; max-width: 240px; height: 1.9rem; background-color: rgba(0, 0, 0, 0.3); border-color: rgba(255,255,255,0.1); color: #fff;">
+                    <!-- Dynamically populated with matches -->
+                  </select>
+                </div>
+              </div>
+
+              <!-- Visual Cards Grid for the selected round -->
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                <!-- Chart 1: Golpes Totales vs Par (Barras) -->
+                <div style="background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255,255,255,0.04); border-radius: 0.5rem; padding: 0.85rem;">
+                  <h5 style="font-size: 0.75rem; font-weight: 700; color: #fff; margin: 0 0 0.75rem 0; text-transform: uppercase; letter-spacing: 0.03em;">Golpes Totales vs Par de Cancha</h5>
+                  <div style="position: relative; height: 200px; width: 100%;">
+                    <canvas id="chart-duelo-totals-bar"></canvas>
+                  </div>
+                </div>
+
+                <!-- Chart 2: Tiros Acumulados por Hoyo vs Par (Línea acumulativa) -->
+                <div style="background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255,255,255,0.04); border-radius: 0.5rem; padding: 0.85rem;">
+                  <h5 style="font-size: 0.75rem; font-weight: 700; color: #fff; margin: 0 0 0.75rem 0; text-transform: uppercase; letter-spacing: 0.03em;">Tiros Acumulados por Hoyo vs Par</h5>
+                  <div style="position: relative; height: 230px; width: 100%;">
+                    <canvas id="chart-duelo-cumulative-line"></canvas>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Chart 3: Desempeño y Evolución Hoyo por Hoyo -->
+              <div style="background: rgba(15, 23, 42, 0.3); border: 1px solid rgba(255,255,255,0.04); border-radius: 0.5rem; padding: 0.85rem;">
+                <h5 style="font-size: 0.75rem; font-weight: 700; color: #fff; margin: 0 0 0.75rem 0; text-transform: uppercase; letter-spacing: 0.03em;">Desempeño y Evolución Hoyo por Hoyo</h5>
+                <div style="position: relative; height: 230px; width: 100%;">
+                  <canvas id="chart-duelo-hole-by-hole"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- Chart 4: Evolución Histórica de Duelos (Tendencia temporal) -->
+            <div id="duelo-history-trend-card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 1rem; display: none; flex-direction: column; gap: 0.75rem;">
+              <div>
+                <h4 style="font-size: 0.85rem; font-weight: 700; color: #fff; margin: 0;">Evolución Histórica de Duelos</h4>
+                <p style="font-size: 0.65rem; color: var(--text-muted); margin: 0.15rem 0 0 0;">Historial cronológico de scores entre ambos a lo largo del tiempo</p>
+              </div>
+              <div style="position: relative; height: 220px; width: 100%;">
+                <canvas id="chart-duelo-history-trend"></canvas>
+              </div>
+            </div>
+
+            <!-- Matches list -->
+            <div>
+              <h4 style="font-size: 0.8rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">Partidas Jugadas Juntos</h4>
+              <div class="table-card-wrapper" style="overflow-x: auto;">
+                <table class="scorecard-view-table" style="width: 100%; min-width: 480px; font-size: 0.75rem;">
+                  <thead>
+                    <tr class="header-row">
+                      <th>Fecha</th>
+                      <th>Cancha</th>
+                      <th class="text-center">Tu Score</th>
+                      <th class="text-center">Su Score</th>
+                      <th class="text-center">Resultado</th>
+                    </tr>
+                  </thead>
+                  <tbody id="duelo-matches-list">
+                    <!-- Matches populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <!-- Empty state for no friend selected -->
+          <div id="duelo-empty-state" style="text-align: center; padding: 2rem 0; color: var(--text-muted);">
+            <span style="font-size: 2rem; display: block; margin-bottom: 0.5rem;">👥</span>
+            <p style="font-size: 0.75rem; margin: 0;">Elegí un compañero de juego para ver el historial acumulado.</p>
+          </div>
+        </div>
+      </div> <!-- End subtab-pane-duelos -->
+    </div>
+    
+    <!-- Modal 1: Registrar Salida -->
+  <div class="modal-overlay" id="modal-register">
+    <div class="modal-content max-w-4xl">
+      <div class="modal-header">
+        <h3 class="modal-title">🏌️‍♂️ Registrar Nueva Salida</h3>
+        <button class="modal-close" data-close="modal-register">&times;</button>
+      </div>
+      <form id="form-register-round">
+        <div class="modal-body space-y-6">
+          
+          <div class="form-row grid-2">
+            <!-- Modalidad -->
+            <div class="form-group">
+              <label class="form-label">Modalidad de Salida</label>
+              <div class="modalidad-selector">
+                <button type="button" class="btn-modalidad active" data-mode="front">9 Hoyos (Ida)</button>
+                <button type="button" class="btn-modalidad" data-mode="back">9 Hoyos (Vuelta)</button>
+                <button type="button" class="btn-modalidad" data-mode="full">18 Hoyos</button>
+              </div>
+            </div>
+            <!-- Cancha Selection -->
+            <div class="form-group">
+              <div class="flex-between">
+                <label for="reg-course-select" class="form-label">Cancha</label>
+                <button type="button" class="btn-text-action" id="btn-open-add-course">+ Nueva Cancha</button>
+              </div>
+              <select id="reg-course-select" class="form-control" required>
+                <!-- Loaded dynamically -->
+              </select>
+            </div>
+            <!-- Fecha -->
+            <div class="form-group">
+              <label for="reg-date" class="form-label">Fecha de Juego</label>
+              <input type="date" id="reg-date" class="form-control" required>
+            </div>
+          </div>
+
+          <!-- Scorecard Interactive Grid -->
+          <div class="scorecard-section">
+            <div class="scorecard-header-row">
+              <span class="form-label" style="margin-bottom: 0;">Detalle Hoyo por Hoyo</span>
+              <div style="display: flex; gap: 0.5rem;">
+                <button type="button" class="btn btn-outline btn-xs" id="btn-toggle-advanced-stats">
+                  📊 Stats Avanzadas
+                </button>
+                <button type="button" class="btn btn-outline btn-xs" id="btn-autofill-pars">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 0.2rem;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                  Auto-completar con Pars
+                </button>
+              </div>
+            </div>
+
+            <!-- Scrollable container for holes grids (stacked and full width) -->
+            <div class="scorecard-scroll-container">
+              <!-- Front Nine (1-9) -->
+              <div class="nine-holes-container" id="front-nine-container">
+                <div class="nine-header">
+                  <span class="nine-title">Ida (Hoyos 1 - 9)</span>
+                  <span class="nine-sum-label" id="front-summary-label">Par: 36 | Golpes: 0</span>
+                </div>
+                <div class="holes-grid" id="front-holes-grid">
+                  <!-- Dynamically populated -->
+                </div>
+              </div>
+
+              <!-- Back Nine (10-18) -->
+              <div class="nine-holes-container" id="back-nine-container">
+                <div class="nine-header">
+                  <span class="nine-title">Vuelta (Hoyos 10 - 18)</span>
+                  <span class="nine-sum-label" id="back-summary-label">Par: 36 | Golpes: 0</span>
+                </div>
+                <div class="holes-grid" id="back-holes-grid">
+                  <!-- Dynamically populated -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Scorecard Totals Summary Card -->
+            <div class="scorecard-summary-row">
+              <div class="scorecard-summary-card">
+                <div>
+                  <h4>Resumen de la Tarjeta</h4>
+                  <p class="summary-subtitle" style="margin-bottom: 0;">Totales comparados con el par de la cancha</p>
+                </div>
+                <div class="summary-stats-row">
+                  <div class="stat-box">
+                    <span class="stat-label">Par total</span>
+                    <span class="stat-val" id="summary-total-par">72</span>
+                  </div>
+                  <div class="stat-box border-left">
+                    <span class="stat-label">Golpes totales</span>
+                    <span class="stat-val text-white" id="summary-total-strokes">0</span>
+                  </div>
+                  <div class="stat-box border-left">
+                    <span class="stat-label">Score</span>
+                    <span class="stat-val" id="summary-relative-score">-</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Duración de la Salida (Opcional) -->
+          <div class="form-group" style="margin-top: 0.5rem;">
+            <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+              <span>⏱️ Duración de la Salida <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">(Opcional)</span></span>
+            </label>
+            <div style="display: flex; gap: 0.75rem; align-items: center;">
+              <div style="display: flex; align-items: center; gap: 0.35rem; flex: 1;">
+                <input type="number" id="reg-duration-hours" class="form-control" placeholder="0" min="0" max="12" style="text-align: center;">
+                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">horas</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.35rem; flex: 1;">
+                <input type="number" id="reg-duration-mins" class="form-control" placeholder="0" min="0" max="59" style="text-align: center;">
+                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">minutos</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notas -->
+          <div class="form-group">
+            <label for="reg-notes" class="form-label">Notas o Comentarios</label>
+            <textarea id="reg-notes" class="form-control h-20" placeholder="Ej: Viento cruzado fuerte, mejoré la salida en la vuelta, jugué con Juan..."></textarea>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" data-close="modal-register">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Ronda</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 2: Añadir Cancha -->
+  <div class="modal-overlay" id="modal-course">
+    <div class="modal-content max-w-2xl">
+      <div class="modal-header">
+        <h3 class="modal-title">⛳ Añadir Cancha Personalizada</h3>
+        <button class="modal-close" data-close="modal-course">&times;</button>
+      </div>
+      <form id="form-add-course">
+        <div class="modal-body space-y-4">
+          <!-- Nombre -->
+          <div class="form-group">
+            <label for="course-name" class="form-label">Nombre de la Cancha / Club</label>
+            <input type="text" id="course-name" class="form-control" placeholder="Ej: Ranelagh Golf Club, Mapuche..." required>
+          </div>
+
+          <!-- Metricas -->
+          <div class="grid-3">
+            <div class="form-group">
+              <label class="form-label">Par total</label>
+              <div class="form-control-disabled" id="course-par-display">72</div>
+            </div>
+            <div class="form-group">
+              <label for="course-rating" class="form-label">Rating <span class="help-text">(Ej: 71.5)</span></label>
+              <input type="number" id="course-rating" step="0.1" class="form-control text-center" value="72.0" required>
+            </div>
+            <div class="form-group">
+              <label for="course-slope" class="form-label">Slope <span class="help-text">(Ej: 113)</span></label>
+              <input type="number" id="course-slope" class="form-control text-center" value="113" required>
+            </div>
+          </div>
+
+          <!-- Plantillas rapidas -->
+          <div class="quick-templates">
+            <span class="template-label">Plantillas Rápidas:</span>
+            <div class="template-btns">
+              <button type="button" class="btn-xs-template" data-template="72">Par 72 Estándar</button>
+              <button type="button" class="btn-xs-template" data-template="71">Par 71 Estándar</button>
+              <button type="button" class="btn-xs-template" data-template="70">Par 70 Estándar</button>
+            </div>
+          </div>
+
+          <!-- Definicion de Pars -->
+          <div class="form-group">
+            <label class="form-label">Configurar Pars por Hoyo</label>
+            <div class="pars-entry-grid" id="course-pars-grid">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" data-close="modal-course">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Crear Cancha</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 3: Detalle de Tarjeta Guardada -->
+  <div class="modal-overlay" id="modal-view-card">
+    <div class="modal-content max-w-3xl">
+      <div class="modal-header">
+        <h3 class="modal-title" id="view-card-title">📊 Tarjeta de Juego</h3>
+        <button class="modal-close" data-close="modal-view-card">&times;</button>
+      </div>
+      <div class="modal-body space-y-6">
+        <!-- Info Cards -->
+        <div class="card-info-grid">
+          <div>
+            <span class="info-label">Rating / Slope</span>
+            <span class="info-val" id="view-card-ratings">72.0 / 113</span>
+          </div>
+          <div>
+            <span class="info-label">Score Total</span>
+            <span class="info-val font-bold" id="view-card-score">85 (+13)</span>
+          </div>
+          <div>
+            <span class="info-label">Diferencial de Ronda</span>
+            <span class="info-val text-blue" id="view-card-diff">12.5</span>
+          </div>
+          <div>
+            <span class="info-label">Fecha</span>
+            <span class="info-val" id="view-card-date">04/07/2026</span>
+          </div>
+        </div>
+
+        <!-- Scorecard Table: Front -->
+        <div class="table-card-wrapper" id="view-card-front-wrapper">
+          <table class="scorecard-view-table">
+            <thead>
+              <tr class="header-row">
+                <th>Hoyo</th>
+                <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th>
+                <th class="bg-gray">Ida</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="view-card-par-front">
+                <td class="row-label">Par</td>
+                <!-- 9 pars -->
+                <td class="bg-gray font-bold">-</td>
+              </tr>
+              <tr id="view-card-strokes-front">
+                <td class="row-label text-blue">Golpes</td>
+                <!-- 9 strokes -->
+                <td class="bg-gray font-bold">-</td>
+              </tr>
+              <tr id="view-card-diff-front">
+                <td class="row-label text-muted" style="font-size: 0.65rem;">+/-</td>
+                <!-- 9 diffs -->
+                <td class="bg-gray font-bold">-</td>
+              </tr>
+              <tr id="view-card-putts-front">
+                <td class="row-label text-muted" style="font-size: 0.65rem;">Putts</td>
+                <!-- 9 putts -->
+                <td class="bg-gray font-bold">-</td>
+              </tr>
+
+              <tr id="view-card-gir-front">
+                <td class="row-label text-muted" style="font-size: 0.65rem;">Multas</td>
+                <!-- 9 fairway/green -->
+                <td class="bg-gray font-bold">-</td>
+              </tr>
+              <tr id="view-card-time-front" style="display: none;">
+                <td class="row-label text-muted" style="font-size: 0.65rem;">Tiempo</td>
+                <!-- 9 times -->
+                <td class="bg-gray font-bold">-</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Scorecard Table: Back -->
+        <div class="table-card-wrapper" id="view-card-back-wrapper">
+          <table class="scorecard-view-table">
+            <thead>
+              <tr class="header-row">
+                <th>Hoyo</th>
+                <th>10</th><th>11</th><th>12</th><th>13</th><th>14</th><th>15</th><th>16</th><th>17</th><th>18</th>
+                <th class="bg-gray">Vta</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="view-card-par-back">
+                <td class="row-label">Par</td>
+                <!-- 9 pars -->
+                <td class="bg-gray font-bold">-</td>
+                <td class="bg-gray-dark font-extrabold" id="view-card-total-par">-</td>
+              </tr>
+              <tr id="view-card-strokes-back">
+                <td class="row-label text-blue">Golpes</td>
+                <!-- 9 strokes -->
+                <td class="bg-gray font-bold">-</td>
+                <td class="bg-blue-dark font-extrabold" id="view-card-total-strokes">-</td>
+              </tr>
+              <tr id="view-card-diff-back">
+                <td class="row-label text-muted" style="font-size: 0.65rem;">+/-</td>
+                <!-- 9 diffs -->
+                <td class="bg-gray font-bold">-</td>
+              </tr>
+              <tr id="view-card-putts-back">
+                <td class="row-label text-muted" style="font-size: 0.65rem;">Putts</td>
+                <!-- 9 putts -->
+                <td class="bg-gray font-bold">-</td>
+                <td class="bg-gray-dark font-extrabold" id="view-card-total-putts">-</td>
+              </tr>
+
+              <tr id="view-card-gir-back">
+                <td class="row-label text-muted" style="font-size: 0.65rem;">Multas</td>
+                <!-- 9 fairway/green -->
+                <td class="bg-gray font-bold">-</td>
+                <td class="bg-gray-dark font-extrabold" id="view-card-total-gir">-</td>
+              </tr>
+              <tr id="view-card-time-back" style="display: none;">
+                <td class="row-label text-muted" style="font-size: 0.65rem;">Tiempo</td>
+                <!-- 9 times -->
+                <td class="bg-gray font-bold">-</td>
+                <td class="bg-gray-dark font-extrabold" id="view-card-total-time">-</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Notas View -->
+        <div class="view-notes-box" id="view-card-notes-box">
+          <span class="notes-label">Notas de la Salida</span>
+          <p id="view-card-notes" class="notes-content"></p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" data-close="modal-view-card">Cerrar Tarjeta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Join Lobby -->
+  <div class="modal-overlay" id="modal-join-lobby" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 1.5rem;">
+    <div class="modal-content max-w-md" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 1rem; overflow: hidden;">
+      <div class="modal-header" style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-color);">
+        <h3 class="modal-title" style="font-size: 1rem; font-weight: 700; color: #fff;">👥 Unirse a Partida de Golf</h3>
+      </div>
+      <div class="modal-body" style="padding: 1.25rem;">
+        <p style="margin-bottom: 1.25rem; font-size: 0.85rem; color: var(--text-muted); line-height: 1.4;" id="join-lobby-message">Te invitaron a jugar una ronda de golf.</p>
+        
+        <!-- Logged In State Box -->
+        <div id="join-logged-in-box" style="display: none; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 0.5rem; padding: 0.85rem; margin-bottom: 1rem;">
+          <span style="font-size: 0.7rem; color: #34d399; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 0.2rem;">Conectado a tu cuenta:</span>
+          <span id="join-logged-in-email" style="font-size: 0.9rem; color: #fff; font-weight: 700;">usuario@email.com</span>
+        </div>
+
+        <!-- Choice Box (Only for unauthenticated users) -->
+        <div id="join-auth-choice-box" style="display: flex; flex-direction: column; gap: 0.65rem; margin-bottom: 1.25rem;">
+          <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">¿Cómo querés ingresar?</div>
+          
+          <button type="button" class="btn btn-outline" id="btn-choice-login" style="display: flex; align-items: center; justify-content: flex-start; gap: 0.75rem; padding: 0.75rem 0.85rem; border-color: rgba(59, 130, 246, 0.4); background: rgba(59, 130, 246, 0.08); text-align: left; cursor: pointer; border-radius: 0.5rem;">
+            <span style="font-size: 1.25rem;">🔐</span>
+            <div>
+              <strong style="display: block; font-size: 0.8rem; color: #60a5fa;">Iniciar Sesión / Registrarme</strong>
+              <span style="font-size: 0.65rem; color: #93c5fd;">Guarda la ronda en tu cuenta y calcula tu Handicap</span>
+            </div>
+          </button>
+
+          <button type="button" class="btn btn-outline" id="btn-choice-guest" style="display: flex; align-items: center; justify-content: flex-start; gap: 0.75rem; padding: 0.75rem 0.85rem; border-color: var(--border-color); background: rgba(255,255,255,0.02); text-align: left; cursor: pointer; border-radius: 0.5rem;">
+            <span style="font-size: 1.25rem;">👤</span>
+            <div>
+              <strong style="display: block; font-size: 0.8rem; color: #fff;">Jugar como Invitado</strong>
+              <span style="font-size: 0.65rem; color: var(--text-muted);">Ingresá directo sin registrarte</span>
+            </div>
+          </button>
+        </div>
+
+        <!-- Player Name Input Group -->
+        <div class="form-group" id="join-player-name-group" style="display: flex; flex-direction: column; gap: 0.4rem;">
+          <label for="join-player-name" style="font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em;">Tu Nombre en la Tarjeta</label>
+          <input type="text" id="join-player-name" class="form-control" placeholder="Ej: Juan, Boya..." style="width: 100%; padding: 0.6rem 0.8rem; background-color: var(--bg-control); border: 1px solid var(--border-color); border-radius: 0.5rem; color: #fff; font-family: var(--font-family); font-size: 0.85rem;">
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 0.85rem 1.25rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.5rem;">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-join-lobby').style.display='none'">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-confirm-join-lobby">Entrar a la Ronda</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Application -->
+  <script src="app.js?v=105"></script>
+
+
+
+  <!-- Modal 6: Autenticación de Cuentas (Login / Registro) -->
+  <div class="modal-overlay" id="modal-auth">
+    <div class="modal-content max-w-sm">
+      <div class="modal-header">
+        <h3 class="modal-title" id="auth-modal-title">🔐 Iniciar Sesión</h3>
+        <button class="modal-close" data-close="modal-auth">&times;</button>
+      </div>
+      <form id="form-auth">
+        <div class="modal-body space-y-4">
+          <p class="summary-subtitle" id="auth-modal-subtitle">Iniciá sesión para sincronizar tus scorecards en la nube.</p>
+          
+          <div class="form-group">
+            <label for="auth-email" class="form-label">Correo Electrónico</label>
+            <input type="email" id="auth-email" class="form-control" placeholder="nombre@correo.com" required>
+          </div>
+
+          <div class="form-group">
+            <label for="auth-password" class="form-label">Contraseña</label>
+            <input type="password" id="auth-password" class="form-control" placeholder="••••••••" minlength="6" required>
+          </div>
+
+          <div class="text-center" style="margin-top: 1rem;">
+            <a href="#" id="link-toggle-auth" style="font-size: 0.75rem; color: var(--color-blue); text-decoration: none; font-weight: bold;">
+              ¿No tenés cuenta? Registrate gratis
+            </a>
+          </div>
+          <!-- Auth error message display -->
+          <div id="auth-error-msg" style="display: none; color: #f87171; font-size: 0.75rem; text-align: center; margin-top: 0.75rem; font-weight: bold; background: rgba(239, 68, 68, 0.08); padding: 0.5rem; border-radius: 0.35rem; border: 1px solid rgba(239, 68, 68, 0.2);"></div>
+        </div>
+        <div class="modal-footer" style="flex-direction: column; gap: 0.5rem;">
+          <button type="submit" class="btn btn-primary w-full" id="btn-auth-submit">Iniciar Sesión</button>
+          <button type="button" class="btn btn-ghost w-full" data-close="modal-auth">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Premium Toast Notification -->
+  <div id="premium-toast" class="premium-toast"></div>
+</body>
+</html>
