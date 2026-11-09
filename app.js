@@ -801,6 +801,7 @@ async function loadData() {
 
   // Ensure Costa Esmeralda 13/09 round is injected
   ensureCostaRoundsInjected();
+  sanitizeRoundDurations();
 
   // Reconcile with finished cloud lobbies
   reconcileFinishedLobbiesWithRounds();
@@ -909,6 +910,9 @@ function setupEventListeners() {
 
       if (tabId === 'dashboard') {
         renderCharts(); // Force chart re-rendering/resizing when container becomes visible
+      } else if (tabId === 'analysis') {
+        populateAnalysisCourseDropdown();
+        renderHoleAnalysisCharts();
       }
     });
   });
@@ -1748,6 +1752,49 @@ function updateDashboard() {
 }
 
 // Render Rounds History Cards
+
+// Helper: Parse companion scores from round notes
+function getCompanionsFromRound(round) {
+  if (!round || !round.notes) return [];
+  const compMatch = round.notes.match(/Compa(?:ñ|\uFFFD|n)?eros:\s*([^|]+)/i);
+  if (!compMatch) return [];
+  
+  const text = compMatch[1].trim();
+  const pattern = /([^,()[\]]+(?:\([^)]*\))?)\s*\(([^)]+)\)\s*\[H:([0-9,]+)\]/g;
+  const companions = [];
+  let m;
+  while ((m = pattern.exec(text)) !== null) {
+    const name = m[1].trim();
+    const summary = m[2].trim();
+    const holeScores = m[3].split(',').map(s => parseInt(s, 10) || 0);
+    companions.push({
+      name: name,
+      summary: summary,
+      scores: holeScores
+    });
+  }
+  return companions;
+}
+
+// Helper: Sanitize anomalous round durations (e.g. 9 hours left open -> 2h 20m)
+function sanitizeRoundDurations() {
+  rounds.forEach(r => {
+    if (r.notes && (
+      r.notes.includes('Duración: 9') || 
+      r.notes.includes('Duración: 8h') || 
+      r.notes.includes('Duración: 9h') || 
+      r.notes.includes('Duración: 10h') || 
+      r.notes.includes('9.10m') || 
+      r.notes.includes('9h 10m')
+    )) {
+      r.notes = r.notes.replace(/Duraci(?:ó|o)n:\s*[0-9]+(?:\.[0-9]+m|[hm\s0-9]+)/i, 'Duración: 2h 20m');
+      if (supabaseConnected && supabaseClient && userSession && userSession.user && r.id) {
+        supabaseClient.from('golf_rounds').update({ notes: r.notes }).eq('id', r.id).then(() => {});
+      }
+    }
+  });
+}
+
 function renderHistoryTable() {
   const listContainer = document.getElementById('history-list');
   const emptyMsg = document.getElementById('empty-table-msg');
@@ -1758,25 +1805,17 @@ function renderHistoryTable() {
   // Sort rounds chronologically descending (newest first) before rendering
   rounds.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-  // Filter rounds by selected tab (complete = 18 holes, partial < 18 holes)
-  const filteredRounds = rounds.filter(r => {
-    const playedHoles = r.strokes.filter(s => s > 0).length;
-    return currentHistoryTab === 'complete' ? (playedHoles === 18) : (playedHoles < 18);
-  });
-
-  if (filteredRounds.length === 0) {
+  if (rounds.length === 0) {
     emptyMsg.style.display = 'flex';
     listContainer.style.display = 'none';
-    emptyMsg.querySelector('p').textContent = currentHistoryTab === 'complete'
-      ? 'No tenés salidas de 18 hoyos registradas.'
-      : 'No tenés salidas parciales registradas.';
+    emptyMsg.querySelector('p').textContent = 'Aún no registraste ninguna salida.';
     return;
   }
 
   emptyMsg.style.display = 'none';
   listContainer.style.display = 'flex';
 
-  filteredRounds.forEach((round) => {
+  rounds.forEach((round) => {
     const playedHolesCount = round.strokes.filter(s => s > 0).length;
     
     // Count scores breakdown
@@ -1813,11 +1852,25 @@ function renderHistoryTable() {
     const card = document.createElement('div');
     card.className = 'history-card';
     
+    // Parse duration from notes if available
+    let durationStr = '';
+    if (round.notes && round.notes.includes('Duración: ')) {
+      durationStr = round.notes.split('Duración: ')[1].split(' | ')[0].trim();
+    }
+
+    const companions = getCompanionsFromRound(round);
+    const hasCompanions = companions.length > 0;
+    const holesLabel = playedHolesCount === 18 ? '18 Hoyos' : `${playedHolesCount} Hoyos`;
+
     card.innerHTML = `
       <div class="hc-header">
         <div class="hc-course-info">
           <span class="hc-course-name">${round.course.name.split(' - ')[0]}</span>
-          <span class="hc-date">${formatDate(round.date)}</span>
+          <div class="hc-meta-line">
+            <span class="hc-date">📅 ${formatDate(round.date)}</span>
+            ${durationStr ? `<span class="hc-duration-badge">⏱️ ${durationStr}</span>` : ''}
+            <span class="hc-holes-badge">${holesLabel}</span>
+          </div>
         </div>
         <div class="hc-score-badge ${relativeColor}">${relativeScore}</div>
       </div>
@@ -1828,8 +1881,8 @@ function renderHistoryTable() {
           <span class="hc-stat-val text-white">${round.totalStrokes}</span>
         </div>
         <div class="hc-stat">
-          <span class="hc-stat-label">Hoyos</span>
-          <span class="hc-stat-val text-white">${playedHolesCount}</span>
+          <span class="hc-stat-label">Modalidad</span>
+          <span class="hc-stat-val text-white font-bold">${holesLabel}</span>
         </div>
         <div class="hc-stat">
           <span class="hc-stat-label">Par</span>
@@ -1851,6 +1904,10 @@ function renderHistoryTable() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
           Ver Detalle
         </button>
+        ${hasCompanions ? `
+        <button class="btn btn-outline btn-compare-pill" onclick="viewScorecardCompare('${round.id}')">
+          👥 Ver vs Compañero
+        </button>` : ''}
         <div class="hc-actions-group">
           <button class="btn btn-ghost" onclick="editRound('${round.id}')">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
@@ -2326,9 +2383,15 @@ function setSelectedRoundForCard(round) {
   // Parse duration if saved in notes
   let durationStr = '';
   if (round.notes && round.notes.includes('Duración: ')) {
-    durationStr = round.notes.split('Duración: ')[1];
+    durationStr = round.notes.split('Duración: ')[1].split(' | ')[0].trim();
   }
-  document.getElementById('view-card-date').textContent = formatDate(round.date) + (durationStr ? (' (⏱️ ' + durationStr + ')') : '');
+  const dateEl = document.getElementById('view-card-date');
+  if (dateEl) {
+    dateEl.innerHTML = formatDate(round.date) + (durationStr ? (`<br><span style="color: #60a5fa; font-size: 0.82rem; font-weight: 700;">⏱️ ${durationStr}</span>`) : '');
+  }
+
+  // Setup Solo vs Compare tabs if companions exist
+  setupCardCompanionView(round);
 
     // Hide front or back nine tables if no holes were played in that section
   const hasFront = round.strokes.slice(0, 9).some(s => s > 0);
@@ -2795,13 +2858,26 @@ function setSelectedRoundForCard(round) {
 
 
 
-  // Render Notes
+  // Render Notes: only display if real user notes exist
+  let cleanUserNotes = (round.notes || '')
+    .replace(/Duraci(?:ó|o)n:\s*[^|]+/gi, '')
+    .replace(/FIR:\s*[^|]+/gi, '')
+    .replace(/Hoyos:\s*[^|]+/gi, '')
+    .replace(/Compa(?:ñ|\uFFFD|n)?eros:\s*[^|]+/gi, '')
+    .replace(/Ronda en tiempo real/gi, '')
+    .replace(/Ronda de 9 Hoyos/gi, '')
+    .replace(/Ronda multijugador/gi, '')
+    .replace(/\|/g, '')
+    .trim();
+
   const notesBox = document.getElementById('view-card-notes-box');
-  if (round.notes) {
-    notesBox.style.display = 'block';
-    document.getElementById('view-card-notes').textContent = '"' + round.notes + '"';
-  } else {
-    notesBox.style.display = 'none';
+  if (notesBox) {
+    if (cleanUserNotes && cleanUserNotes !== '-' && cleanUserNotes.length > 1) {
+      notesBox.style.display = 'block';
+      document.getElementById('view-card-notes').textContent = '"' + cleanUserNotes + '"';
+    } else {
+      notesBox.style.display = 'none';
+    }
   }
 }
 
@@ -2811,6 +2887,226 @@ function applyScoreCellClass(element, diff) {
   else if (diff === 1) element.className = 'score-cell-bogey';
   else if (diff >= 2) element.className = 'score-cell-double';
 }
+
+
+// Global state for scorecard companion comparison
+let currentCardRound = null;
+let currentCardCompanionIdx = 0;
+
+function setupCardCompanionView(round) {
+  currentCardRound = round;
+  currentCardCompanionIdx = 0;
+  
+  const companions = getCompanionsFromRound(round);
+  const subtabs = document.getElementById('view-card-subtabs');
+  const soloContent = document.getElementById('view-card-solo-content');
+  const comparePanel = document.getElementById('view-card-compare-panel');
+  const btnSolo = document.getElementById('btn-card-tab-solo');
+  const btnCompare = document.getElementById('btn-card-tab-compare');
+
+  if (companions.length > 0) {
+    if (subtabs) subtabs.style.display = 'flex';
+    if (btnSolo) {
+      btnSolo.onclick = () => switchViewCardTab('solo');
+      btnSolo.style.background = 'var(--border-color)';
+      btnSolo.style.color = '#fff';
+    }
+    if (btnCompare) {
+      btnCompare.onclick = () => switchViewCardTab('compare');
+      btnCompare.style.background = 'transparent';
+      btnCompare.style.color = 'var(--text-muted)';
+    }
+    renderCardCompanionSelector(companions);
+    renderCardComparisonTable(round, companions[0]);
+  } else {
+    if (subtabs) subtabs.style.display = 'none';
+  }
+  
+  if (soloContent) soloContent.style.display = 'block';
+  if (comparePanel) comparePanel.style.display = 'none';
+}
+
+window.switchViewCardTab = function(mode) {
+  const soloContent = document.getElementById('view-card-solo-content');
+  const comparePanel = document.getElementById('view-card-compare-panel');
+  const btnSolo = document.getElementById('btn-card-tab-solo');
+  const btnCompare = document.getElementById('btn-card-tab-compare');
+
+  if (mode === 'compare') {
+    if (soloContent) soloContent.style.display = 'none';
+    if (comparePanel) comparePanel.style.display = 'flex';
+    if (btnSolo) {
+      btnSolo.style.background = 'transparent';
+      btnSolo.style.color = 'var(--text-muted)';
+    }
+    if (btnCompare) {
+      btnCompare.style.background = 'var(--border-color)';
+      btnCompare.style.color = '#fff';
+    }
+  } else {
+    if (soloContent) soloContent.style.display = 'block';
+    if (comparePanel) comparePanel.style.display = 'none';
+    if (btnSolo) {
+      btnSolo.style.background = 'var(--border-color)';
+      btnSolo.style.color = '#fff';
+    }
+    if (btnCompare) {
+      btnCompare.style.background = 'transparent';
+      btnCompare.style.color = 'var(--text-muted)';
+    }
+  }
+};
+
+window.viewScorecardCompare = function(roundId) {
+  viewScorecard(roundId);
+  switchViewCardTab('compare');
+};
+
+function renderCardCompanionSelector(companions) {
+  const container = document.getElementById('view-card-companion-selector');
+  if (!container) return;
+  container.innerHTML = '';
+  
+  if (companions.length <= 1) return;
+
+  companions.forEach((comp, idx) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-xs-template' + (idx === currentCardCompanionIdx ? ' active' : '');
+    btn.textContent = '👤 ' + comp.name.split(' (')[0];
+    btn.onclick = () => {
+      currentCardCompanionIdx = idx;
+      renderCardCompanionSelector(companions);
+      renderCardComparisonTable(currentCardRound, companions[idx]);
+    };
+    container.appendChild(btn);
+  });
+}
+
+function renderCardComparisonTable(round, companion) {
+  const container = document.getElementById('view-card-compare-table-container');
+  if (!container || !round || !companion) return;
+
+  const userStrokes = round.strokes || [];
+  const compStrokes = companion.scores || [];
+  const coursePars = (round.course && round.course.holesPar) ? round.course.holesPar : Array(18).fill(4);
+
+  const playedIndices = [];
+  for (let i = 0; i < 18; i++) {
+    const s = userStrokes[i] || 0;
+    const cs = compStrokes[i] || 0;
+    if (s > 0 || cs > 0) playedIndices.push(i);
+  }
+
+  if (playedIndices.length === 0) {
+    container.innerHTML = '<p class="text-muted text-center" style="padding: 1rem;">No hay hoyos comparativos registrados.</p>';
+    return;
+  }
+
+  let tableHtml = '<table class="scorecard-view-table"><thead><tr class="header-row"><th>Hoyo</th>';
+  playedIndices.forEach(i => {
+    tableHtml += `<th>${i+1}</th>`;
+  });
+  tableHtml += '<th class="bg-gray font-bold">TOTAL</th></tr></thead><tbody>';
+
+  // 1. Par Row
+  tableHtml += '<tr><td class="row-label">Par</td>';
+  let totalPar = 0;
+  playedIndices.forEach(i => {
+    const p = coursePars[i] || 4;
+    totalPar += p;
+    tableHtml += `<td>${p}</td>`;
+  });
+  tableHtml += `<td class="bg-gray font-bold">${totalPar}</td></tr>`;
+
+  // 2. User Row
+  tableHtml += '<tr><td class="row-label text-emerald font-bold">Tú</td>';
+  let userTotal = 0;
+  playedIndices.forEach(i => {
+    const s = userStrokes[i] || 0;
+    userTotal += s;
+    const p = coursePars[i] || 4;
+    const diff = s - p;
+    let cls = '';
+    if (s > 0) {
+      if (diff <= -1) cls = 'score-cell-birdie';
+      else if (diff === 0) cls = '';
+      else if (diff === 1) cls = 'score-cell-bogey';
+      else if (diff >= 2) cls = 'score-cell-double';
+    }
+    tableHtml += `<td class="${cls} font-bold">${s > 0 ? s : '-'}</td>`;
+  });
+  tableHtml += `<td class="bg-gray-dark font-extrabold text-emerald">${userTotal}</td></tr>`;
+
+  // 3. Companion Row
+  const compFirstName = companion.name.split(' ')[0];
+  tableHtml += `<tr><td class="row-label text-blue font-bold">${compFirstName}</td>`;
+  let compTotal = 0;
+  playedIndices.forEach(i => {
+    const cs = compStrokes[i] || 0;
+    compTotal += cs;
+    const p = coursePars[i] || 4;
+    const diff = cs - p;
+    let cls = '';
+    if (cs > 0) {
+      if (diff <= -1) cls = 'score-cell-birdie';
+      else if (diff === 0) cls = '';
+      else if (diff === 1) cls = 'score-cell-bogey';
+      else if (diff >= 2) cls = 'score-cell-double';
+    }
+    tableHtml += `<td class="${cls} font-bold">${cs > 0 ? cs : '-'}</td>`;
+  });
+  tableHtml += `<td class="bg-gray-dark font-extrabold text-blue">${compTotal}</td></tr>`;
+
+  // 4. Hole-by-Hole Outcome Row
+  tableHtml += '<tr><td class="row-label text-muted">Resultado</td>';
+  let userWon = 0;
+  let compWon = 0;
+  let tied = 0;
+  playedIndices.forEach(i => {
+    const s = userStrokes[i] || 0;
+    const cs = compStrokes[i] || 0;
+    if (s > 0 && cs > 0) {
+      if (s < cs) {
+        userWon++;
+        tableHtml += `<td style="color: #10b981; font-weight: 700;">▲ +${cs - s}</td>`;
+      } else if (cs < s) {
+        compWon++;
+        tableHtml += `<td style="color: #f87171; font-weight: 700;">▼ -${s - cs}</td>`;
+      } else {
+        tied++;
+        tableHtml += '<td style="color: #94a3b8; font-weight: 600;">=</td>';
+      }
+    } else {
+      tableHtml += '<td>-</td>';
+    }
+  });
+  tableHtml += `<td class="bg-gray font-bold" style="font-size: 0.72rem; white-space: nowrap;">${userWon}W - ${compWon}L - ${tied}T</td></tr>`;
+  tableHtml += '</tbody></table>';
+
+  // Summary box
+  const diffTotal = userTotal - compTotal;
+  let outcomeBadge = '';
+  if (diffTotal < 0) {
+    outcomeBadge = `<span style="background: rgba(16, 185, 129, 0.15); color: #34d399; padding: 0.35rem 0.65rem; border-radius: 9999px; font-weight: 800; font-size: 0.78rem;">🏆 Ganaste por ${Math.abs(diffTotal)} golpes</span>`;
+  } else if (diffTotal > 0) {
+    outcomeBadge = `<span style="background: rgba(239, 68, 68, 0.15); color: #f87171; padding: 0.35rem 0.65rem; border-radius: 9999px; font-weight: 800; font-size: 0.78rem;">${compFirstName} ganó por ${diffTotal} golpes</span>`;
+  } else {
+    outcomeBadge = `<span style="background: rgba(255, 255, 255, 0.08); color: #cbd5e1; padding: 0.35rem 0.65rem; border-radius: 9999px; font-weight: 800; font-size: 0.78rem;">🤝 Empate total</span>`;
+  }
+
+  tableHtml += `
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; padding: 0.75rem 1rem; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+      <div style="font-size: 0.8rem; font-weight: 700; color: #fff;">
+        Tú: <span class="text-emerald">${userTotal}</span> vs ${companion.name}: <span class="text-blue">${compTotal}</span>
+      </div>
+      <div>${outcomeBadge}</div>
+    </div>
+  `;
+
+  container.innerHTML = tableHtml;
+}
+
 
 // Delete Confirmation
 window.promptDeleteRound = async function(roundId) {

@@ -2910,18 +2910,18 @@ button, a, .btn, .nav-tab, .sub-tab-btn, .btn-live-ctrl,
 
 .btn-bottom-play {
   position: absolute;
-  top: -18px;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
+  top: -16px;
+  width: 58px;
+  height: 52px;
+  border-radius: 14px;
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  border: 3px solid #0f172a;
+  border: 2.5px solid #0f172a;
   color: #ffffff;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.55);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.45);
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   -webkit-tap-highlight-color: transparent;
@@ -3141,4 +3141,51 @@ body.live-round-active #live-tracker-view .card-body {
 
 .live-dropdown-item.item-cancel {
   color: #f87171;
+}
+
+
+/* --- Card Format & Companion Compare Styling --- */
+.hc-meta-line {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-top: 0.35rem;
+}
+
+.hc-duration-badge {
+  font-size: 0.68rem;
+  background: rgba(96, 165, 250, 0.12);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  padding: 0.15rem 0.45rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+}
+
+.hc-holes-badge {
+  font-size: 0.68rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+  border: 1px solid var(--border-color);
+  padding: 0.15rem 0.45rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn-compare-pill {
+  border-color: rgba(59, 130, 246, 0.4) !important;
+  color: #60a5fa !important;
+  background: rgba(59, 130, 246, 0.08) !important;
+  font-size: 0.75rem !important;
+  padding: 0.45rem 0.75rem !important;
+}
+
+.btn-compare-pill:hover, .btn-compare-pill:active {
+  background: rgba(59, 130, 246, 0.2) !important;
+  color: #93c5fd !important;
 }
