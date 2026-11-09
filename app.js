@@ -812,6 +812,16 @@ function saveData(key, data) {
 }
 
 // Set up UI Event Listeners
+
+// Toggle full-screen live game mode (hides header & bottom tabs, shows live fixed bar)
+function updateLiveTrackerVisibility(isActive) {
+  document.body.classList.toggle('live-round-active', !!isActive);
+  const liveBar = document.getElementById('live-bottom-bar');
+  if (liveBar) liveBar.style.display = isActive ? 'flex' : 'none';
+  const dropdown = document.getElementById('live-more-dropdown');
+  if (dropdown && !isActive) dropdown.style.display = 'none';
+}
+
 function setupEventListeners() {
   // Modal toggle listeners
   document.getElementById('btn-open-register').addEventListener('click', () => openModal('modal-register'));
@@ -886,18 +896,61 @@ function setupEventListeners() {
   // Main Navigation Toggles
   document.querySelectorAll('.nav-tab').forEach(btn => {
     btn.addEventListener('click', (e) => {
-      document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+      const tabId = e.currentTarget.getAttribute('data-tab');
+      
+      // Synchronize active class across both top and bottom nav tabs
+      document.querySelectorAll('.nav-tab').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-tab') === tabId);
+      });
       document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
 
-      e.currentTarget.classList.add('active');
-      const tabId = e.currentTarget.getAttribute('data-tab');
-      document.getElementById('tab-pane-' + tabId).classList.add('active');
+      const targetPane = document.getElementById('tab-pane-' + tabId);
+      if (targetPane) targetPane.classList.add('active');
 
       if (tabId === 'dashboard') {
         renderCharts(); // Force chart re-rendering/resizing when container becomes visible
       }
     });
   });
+
+  // Central bottom '+' button opens modal
+  const btnBottomReg = document.getElementById('btn-bottom-register');
+  if (btnBottomReg) {
+    btnBottomReg.addEventListener('click', () => openModal('modal-register'));
+  }
+
+  // Live round options menu (⋯)
+  const btnMoreOptions = document.getElementById('btn-live-more-options');
+  const liveDropdown = document.getElementById('live-more-dropdown');
+  if (btnMoreOptions && liveDropdown) {
+    btnMoreOptions.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isVisible = liveDropdown.style.display === 'flex' || liveDropdown.style.display === 'block';
+      liveDropdown.style.display = isVisible ? 'none' : 'flex';
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!btnMoreOptions.contains(e.target) && !liveDropdown.contains(e.target)) {
+        liveDropdown.style.display = 'none';
+      }
+    });
+
+    const btnMenuFinish = document.getElementById('btn-menu-finish-round');
+    if (btnMenuFinish) {
+      btnMenuFinish.addEventListener('click', () => {
+        liveDropdown.style.display = 'none';
+        finishLiveRound();
+      });
+    }
+
+    const btnMenuCancel = document.getElementById('btn-menu-cancel-round');
+    if (btnMenuCancel) {
+      btnMenuCancel.addEventListener('click', () => {
+        liveDropdown.style.display = 'none';
+        cancelLiveRound();
+      });
+    }
+  }
 
   // Form submits
   document.getElementById('form-register-round').addEventListener('submit', handleRegisterRoundSubmit);
@@ -1047,6 +1100,9 @@ function setupEventListeners() {
       liveCurrentIndex++;
       renderLiveHole();
       saveLiveRoundState();
+    } else if (liveCurrentIndex === liveHolesList.length - 1) {
+      // In last hole, button is "Terminar ✓" -> finish round
+      finishLiveRound();
     }
   });
 
@@ -2849,6 +2905,7 @@ function startLiveRound() {
   // UI transition
   document.getElementById('live-setup-view').style.display = 'none';
   document.getElementById('live-tracker-view').style.display = 'block';
+  updateLiveTrackerVisibility(true);
 
   renderLiveHole();
   saveLiveRoundState();
@@ -2988,8 +3045,23 @@ function renderLiveHole() {
 
 
   // Navigation button states
-  document.getElementById('btn-live-prev-hole').disabled = liveCurrentIndex === 0;
-  document.getElementById('btn-live-next-hole').disabled = liveCurrentIndex === liveHolesList.length - 1;
+  const prevHoleBtn = document.getElementById('btn-live-prev-hole');
+  const nextHoleBtn = document.getElementById('btn-live-next-hole');
+  if (prevHoleBtn) {
+    prevHoleBtn.disabled = liveCurrentIndex === 0;
+  }
+  if (nextHoleBtn) {
+    const isLastHole = liveCurrentIndex === liveHolesList.length - 1;
+    if (isLastHole) {
+      nextHoleBtn.innerHTML = '<span>Terminar ✓</span>';
+      nextHoleBtn.classList.add('btn-finish-mode');
+      nextHoleBtn.disabled = false;
+    } else {
+      nextHoleBtn.innerHTML = '<span>Siguiente</span> <span class="nav-arrow">▶</span>';
+      nextHoleBtn.classList.remove('btn-finish-mode');
+      nextHoleBtn.disabled = false;
+    }
+  }
 
   updateLiveScoreSummary();
   renderLiveJumperGrid();
@@ -3109,6 +3181,7 @@ function checkActiveLiveRound() {
         localStorage.removeItem('golf_tracker_live_round');
         document.getElementById('live-setup-view').style.display = 'block';
         document.getElementById('live-tracker-view').style.display = 'none';
+        updateLiveTrackerVisibility(false);
         return;
       }
       if (state.active) {
@@ -3142,6 +3215,7 @@ function checkActiveLiveRound() {
         // Show live pane
         document.getElementById('live-setup-view').style.display = 'none';
         document.getElementById('live-tracker-view').style.display = 'block';
+        updateLiveTrackerVisibility(true);
         
         // Select the "Empezar Salida" nav tab
         document.querySelectorAll('.nav-tab').forEach(b => {
@@ -3161,6 +3235,7 @@ function checkActiveLiveRound() {
   }
   document.getElementById('live-setup-view').style.display = 'block';
   document.getElementById('live-tracker-view').style.display = 'none';
+  updateLiveTrackerVisibility(false);
 }
 
 function cancelLiveRound() {
@@ -3183,6 +3258,7 @@ function cancelLiveRound() {
     
     document.getElementById('live-setup-view').style.display = 'block';
     document.getElementById('live-tracker-view').style.display = 'none';
+    updateLiveTrackerVisibility(false);
   }
 }
 
@@ -3349,6 +3425,7 @@ async function finishLiveRound() {
       // Reset UI to setup view
       document.getElementById('live-setup-view').style.display = 'block';
       document.getElementById('live-tracker-view').style.display = 'none';
+      updateLiveTrackerVisibility(false);
 
       // Reload dashboards & switch to History tab
       await loadData();
@@ -4501,6 +4578,7 @@ function cancelLiveRoundSilent() {
   localStorage.removeItem('golf_tracker_live_round');
   document.getElementById('live-setup-view').style.display = 'block';
   document.getElementById('live-tracker-view').style.display = 'none';
+  updateLiveTrackerVisibility(false);
 }
 
 

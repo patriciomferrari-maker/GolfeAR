@@ -2,14 +2,14 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Golf Tracker - Registro y Handicap</title>
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- CSS Stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=105">
+  <link rel="stylesheet" href="styles.css?v=106">
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Supabase JS Client CDN -->
@@ -18,13 +18,11 @@
 <body>
   <div class="app-container">
     <!-- Header -->
+    <!-- Header mínimo en una sola línea -->
     <header class="app-header">
       <div class="logo-area">
         <span class="logo-emoji">🏌️‍♂️</span>
-        <div>
-          <h1>Golf Tracker</h1>
-          <p class="subtitle">Evolución de Juego & Handicap Index</p>
-        </div>
+        <h1>GolfeAR</h1>
       </div>
       <div class="header-actions">
         <!-- Cloud Auth Info -->
@@ -32,9 +30,9 @@
         <button class="btn btn-outline btn-xs" id="btn-auth-action">
           Iniciar Sesión
         </button>
-        <button class="btn btn-primary" id="btn-open-register">
+        <button class="btn btn-primary btn-header-register" id="btn-open-register">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          Registrar Salida
+          <span>Registrar Salida</span>
         </button>
       </div>
     </header>
@@ -343,9 +341,24 @@
         </div></div>
 
       <div id="live-tracker-view" class="card max-w-md mx-auto" style="display: none; margin: 0 auto; max-width: 480px;">
-        <div class="card-header" style="border-bottom: 1px solid var(--border-color); padding: 1.15rem 1.25rem 0.9rem 1.25rem;">
-          <!-- Titulo a todo lo ancho -->
-          <h2 id="live-track-course-name" style="width: 100%; font-size: 1.25rem; font-weight: 800; color: #ffffff; margin: 0 0 0.65rem 0; letter-spacing: -0.01em; line-height: 1.25;">Cancha Activa</h2>
+        <div class="card-header" style="border-bottom: 1px solid var(--border-color); padding: 1rem 1.25rem 0.85rem 1.25rem;">
+          <!-- Titulo con menú de opciones ⋯ -->
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 0.65rem;">
+            <h2 id="live-track-course-name" style="font-size: 1.15rem; font-weight: 800; color: #ffffff; margin: 0; letter-spacing: -0.01em; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Cancha Activa</h2>
+            <div class="live-menu-wrapper" style="position: relative; flex-shrink: 0; margin-left: 0.5rem;">
+              <button type="button" id="btn-live-more-options" class="btn-live-more-trigger" aria-label="Opciones de Ronda" title="Opciones de Ronda">⋯</button>
+              <div id="live-more-dropdown" class="live-more-dropdown" style="display: none;">
+                <button type="button" id="btn-menu-finish-round" class="live-dropdown-item item-finish">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                  <span>Terminar y Guardar</span>
+                </button>
+                <button type="button" id="btn-menu-cancel-round" class="live-dropdown-item item-cancel">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  <span>Cancelar Salida</span>
+                </button>
+              </div>
+            </div>
+          </div>
           
           <!-- Fila de Tarjetas (Tiempo, Codigo, Invitar, Score) -->
           <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 0.5rem;">
@@ -445,26 +458,16 @@
             </div>
           </div>
 
-          <!-- Hole Navigation -->
-          <div class="live-navigation-row" style="width: 100%; display: flex; justify-content: space-between; gap: 1rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem; margin-top: 1rem;">
-            <button type="button" class="btn btn-outline" id="btn-live-prev-hole" style="flex: 1;">◀ Anterior</button>
-            <button type="button" class="btn btn-primary" id="btn-live-next-hole" style="flex: 1;">Siguiente ▶</button>
-          </div>
-
           <!-- Hole Grid Quick Jumper -->
           <div style="width: 100%; border-top: 1px dashed var(--border-color); padding-top: 1rem; margin-top: 0.5rem;">
             <span class="form-label" style="display: block; margin-bottom: 0.5rem; font-size: 0.7rem; text-transform: uppercase;">Mapa de Hoyos</span>
             <div class="live-holes-grid" id="live-holes-grid-jumper"></div>
           </div>
 
-          <!-- End / Cancel Buttons -->
-          <div style="width: 100%; display: flex; gap: 0.75rem; margin-top: 1rem;">
-            <button type="button" class="btn btn-danger" id="btn-cancel-live-round" style="flex: 1;">
-              Cancelar
-            </button>
-            <button type="button" class="btn btn-primary" id="btn-finish-live-round" style="flex: 2; background: linear-gradient(90deg, var(--color-primary) 0%, #059669 100%);">
-              Terminar y Guardar
-            </button>
+          <!-- Hidden fallbacks for legacy references -->
+          <div style="display: none;">
+            <button type="button" id="btn-cancel-live-round"></button>
+            <button type="button" id="btn-finish-live-round"></button>
           </div>
         </div>
       </div>
@@ -993,7 +996,7 @@
   </div>
 
   <!-- JavaScript Application -->
-  <script src="app.js?v=105"></script>
+  <script src="app.js?v=106"></script>
 
 
 
@@ -1036,5 +1039,38 @@
 
   <!-- Premium Toast Notification -->
   <div id="premium-toast" class="premium-toast"></div>
+  <!-- Fixed Bottom Navigation Bar for Live Round (◀ Anterior / Siguiente ▶) -->
+  <div id="live-bottom-bar" class="live-bottom-bar" style="display: none;">
+    <button type="button" class="btn live-nav-btn live-nav-prev" id="btn-live-prev-hole">
+      <span class="nav-arrow">◀</span>
+      <span>Anterior</span>
+    </button>
+    <button type="button" class="btn live-nav-btn live-nav-next" id="btn-live-next-hole">
+      <span>Siguiente</span>
+      <span class="nav-arrow">▶</span>
+    </button>
+  </div>
+
+  <!-- Barra Inferior Fija General (Mobile Navigation) -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <button type="button" class="bottom-nav-item nav-tab active" data-tab="dashboard">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+      <span>Resumen</span>
+    </button>
+    <button type="button" class="bottom-nav-item nav-tab" data-tab="history">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span>Historial</span>
+    </button>
+    <div class="bottom-nav-center-wrapper">
+      <button type="button" class="btn-bottom-add" id="btn-bottom-register" title="Registrar Salida" aria-label="Registrar Salida">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      </button>
+    </div>
+    <button type="button" class="bottom-nav-item nav-tab" data-tab="live">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+      <span>Jugar</span>
+    </button>
+  </nav>
+
 </body>
 </html>
