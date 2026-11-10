@@ -789,9 +789,13 @@ async function loadData() {
   populateCourseDropdown();
   populateLiveCourseDropdown();
   
+  // Sanitize round durations & synthesize missing hole times
+  sanitizeRoundDurations();
+
   // Populate analysis course selection & refresh analysis charts
   populateAnalysisCourseDropdown();
   renderHoleAnalysisCharts();
+  renderTimeEvolutionChart();
 
   // Populate Duelos companions
   populateDuelosCompanions();
@@ -913,9 +917,28 @@ function setupEventListeners() {
       } else if (tabId === 'analysis') {
         populateAnalysisCourseDropdown();
         renderHoleAnalysisCharts();
+        renderTimeEvolutionChart();
       }
     });
   });
+
+  // Time analysis filter buttons (9 vs 18 holes)
+  const btnTime9 = document.getElementById('btn-time-filter-9');
+  const btnTime18 = document.getElementById('btn-time-filter-18');
+  if (btnTime9 && btnTime18) {
+    btnTime9.addEventListener('click', () => {
+      currentTimeHolesFilter = 9;
+      btnTime9.classList.add('active');
+      btnTime18.classList.remove('active');
+      renderTimeEvolutionChart();
+    });
+    btnTime18.addEventListener('click', () => {
+      currentTimeHolesFilter = 18;
+      btnTime18.classList.add('active');
+      btnTime9.classList.remove('active');
+      renderTimeEvolutionChart();
+    });
+  }
 
   // Bottom 'Registrar' button opens registration modal
   const btnBottomReg = document.getElementById('btn-bottom-register');
@@ -1777,22 +1800,76 @@ function getCompanionsFromRound(round) {
 }
 
 // Helper: Sanitize anomalous round durations (e.g. 9 hours left open -> 2h 20m)
+// Helper: Sanitize anomalous round durations & synthesize missing hole times
 function sanitizeRoundDurations() {
+  let modified = false;
   rounds.forEach(r => {
-    if (r.notes && (
+    if (!r.notes) return;
+
+    // 1. Sanitize anomalous durations (e.g. 9 hours left open -> 2h 20m)
+    if (
       r.notes.includes('Duración: 9') || 
+      r.notes.includes('Duracion: 9') || 
+      r.notes.includes('Duraci?n: 9') || 
       r.notes.includes('Duración: 8h') || 
       r.notes.includes('Duración: 9h') || 
       r.notes.includes('Duración: 10h') || 
       r.notes.includes('9.10m') || 
-      r.notes.includes('9h 10m')
-    )) {
-      r.notes = r.notes.replace(/Duraci(?:ó|o)n:\s*[0-9]+(?:\.[0-9]+m|[hm\s0-9]+)/i, 'Duración: 2h 20m');
+      r.notes.includes('9h 10m') ||
+      r.notes.includes('9h 0m')
+    ) {
+      r.notes = r.notes.replace(/Duraci(?:ó|o|\?)n:\s*[0-9]+(?:\.[0-9]+m|[hm\s0-9]+)/i, 'Duración: 2h 20m');
+      modified = true;
       if (supabaseConnected && supabaseClient && userSession && userSession.user && r.id) {
         supabaseClient.from('golf_rounds').update({ notes: r.notes }).eq('id', r.id).then(() => {});
       }
     }
+
+    // 2. Synthesize hole times if duration exists but "Hoyos: " is missing
+    if (!r.notes.includes('Hoyos:') && (r.notes.includes('Duración:') || r.notes.includes('Duracion:') || r.notes.includes('Duraci?n:'))) {
+      const totalMins = parseRoundDurationMinutes(r.notes);
+      if (totalMins && totalMins > 0) {
+        const playedCount = r.strokes ? r.strokes.filter(s => s > 0).length : 0;
+        if (playedCount > 0) {
+          const pars = (r.course && r.course.holesPar) ? r.course.holesPar : Array(18).fill(4);
+          let sumPar = 0;
+          r.strokes.forEach((s, idx) => {
+            if (s > 0) sumPar += (pars[idx] || 4);
+          });
+          if (sumPar === 0) sumPar = playedCount * 4;
+
+          const timesList = Array(18).fill('-');
+          let allocatedMins = 0;
+          const playedIndices = [];
+          r.strokes.forEach((s, idx) => {
+            if (s > 0) playedIndices.push(idx);
+          });
+
+          playedIndices.forEach((idx, i) => {
+            if (i === playedIndices.length - 1) {
+              const rem = Math.max(1, totalMins - allocatedMins);
+              timesList[idx] = rem + 'm';
+            } else {
+              const hPar = pars[idx] || 4;
+              const hMins = Math.max(1, Math.round(totalMins * (hPar / sumPar)));
+              allocatedMins += hMins;
+              timesList[idx] = hMins + 'm';
+            }
+          });
+
+          r.notes += ' | Hoyos: ' + timesList.join(',');
+          modified = true;
+          if (supabaseConnected && supabaseClient && userSession && userSession.user && r.id) {
+            supabaseClient.from('golf_rounds').update({ notes: r.notes }).eq('id', r.id).then(() => {});
+          }
+        }
+      }
+    }
   });
+
+  if (modified && (!supabaseConnected || !userSession || !userSession.user)) {
+    saveData('golf_tracker_rounds', rounds);
+  }
 }
 
 function renderHistoryTable() {
@@ -2385,9 +2462,17 @@ function setSelectedRoundForCard(round) {
   if (round.notes && round.notes.includes('Duración: ')) {
     durationStr = round.notes.split('Duración: ')[1].split(' | ')[0].trim();
   }
-  const dateEl = document.getElementById('view-card-date');
+    const dateEl = document.getElementById('view-card-date');
   if (dateEl) {
-    dateEl.innerHTML = formatDate(round.date) + (durationStr ? (`<br><span style="color: #60a5fa; font-size: 0.82rem; font-weight: 700;">⏱️ ${durationStr}</span>`) : '');
+    let paceText = '';
+    if (holeTimes) {
+      const validTimes = holeTimes.filter(t => t && t !== '-').map(t => parseInt(t) || 0).filter(m => m > 0);
+      if (validTimes.length > 0) {
+        const avg = (validTimes.reduce((a, b) => a + b, 0) / validTimes.length).toFixed(1);
+        paceText = ` (~${avg} min/hoyo)`;
+      }
+    }
+    dateEl.innerHTML = formatDate(round.date) + (durationStr ? (`<br><span style="color: #60a5fa; font-size: 0.82rem; font-weight: 700;">⏱️ ${durationStr}${paceText}</span>`) : '');
   }
 
   // Setup Solo vs Compare tabs if companions exist
@@ -3003,134 +3088,224 @@ function renderCardComparisonTable(round, companion) {
     return;
   }
 
-  let tableHtml = '<table class="scorecard-view-table"><thead><tr class="header-row"><th>Hoyo</th>';
-  playedIndices.forEach(i => {
-    tableHtml += `<th>${i+1}</th>`;
-  });
-  tableHtml += '<th class="bg-gray font-bold">TOTAL</th></tr></thead><tbody>';
+  const compFirstName = companion.name ? companion.name.split(' ')[0] : 'Compañero';
+  const hasFront = playedIndices.some(i => i < 9);
+  const hasBack = playedIndices.some(i => i >= 9);
 
-  // 1. Par Row
-  tableHtml += '<tr><td class="row-label">Par</td>';
-  let totalPar = 0;
-  playedIndices.forEach(i => {
-    const p = coursePars[i] || 4;
-    totalPar += p;
-    tableHtml += `<td>${p}</td>`;
-  });
-  tableHtml += `<td class="bg-gray font-bold">${totalPar}</td></tr>`;
+  function buildNineTable(indices, label, subtotalLabel, isBackSection) {
+    let html = `
+      <div class="compare-nine-section" style="margin-bottom: 1.25rem;">
+        <div style="font-size: 0.82rem; font-weight: 700; color: #38bdf8; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.35rem;">
+          <span>⛳</span> <span>${label}</span>
+        </div>
+        <div class="table-card-wrapper" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; border-radius: 0.5rem; border: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.4);">
+          <table class="scorecard-view-table" style="width: 100%; min-width: 320px; font-size: 0.75rem;">
+            <thead>
+              <tr class="header-row">
+                <th style="min-width: 65px; text-align: left; padding-left: 0.5rem;">Hoyo</th>
+    `;
 
-  // 2. User Row
-  tableHtml += '<tr><td class="row-label text-emerald font-bold">Tú</td>';
-  let userTotal = 0;
-  playedIndices.forEach(i => {
-    const s = userStrokes[i] || 0;
-    userTotal += s;
-    const p = coursePars[i] || 4;
-    const diff = s - p;
-    let cls = '';
-    if (s > 0) {
-      if (diff <= -1) cls = 'score-cell-birdie';
-      else if (diff === 0) cls = '';
-      else if (diff === 1) cls = 'score-cell-bogey';
-      else if (diff >= 2) cls = 'score-cell-double';
+    indices.forEach(i => {
+      html += `<th style="padding: 0.35rem 0.25rem;">${i + 1}</th>`;
+    });
+    html += `<th class="bg-gray font-bold" style="padding: 0.35rem 0.4rem;">${subtotalLabel}</th>`;
+    if (isBackSection) {
+      html += '<th class="bg-gray-dark font-extrabold" style="padding: 0.35rem 0.5rem; color: #38bdf8;">TOTAL</th>';
     }
-    tableHtml += `<td class="${cls} font-bold">${s > 0 ? s : '-'}</td>`;
-  });
-  tableHtml += `<td class="bg-gray-dark font-extrabold text-emerald">${userTotal}</td></tr>`;
+    html += '</tr></thead><tbody>';
 
-  // 3. Companion Row
-  const compFirstName = companion.name.split(' ')[0];
-  tableHtml += `<tr><td class="row-label text-blue font-bold">${compFirstName}</td>`;
-  let compTotal = 0;
-  playedIndices.forEach(i => {
-    const cs = compStrokes[i] || 0;
-    compTotal += cs;
-    const p = coursePars[i] || 4;
-    const diff = cs - p;
-    let cls = '';
-    if (cs > 0) {
-      if (diff <= -1) cls = 'score-cell-birdie';
-      else if (diff === 0) cls = '';
-      else if (diff === 1) cls = 'score-cell-bogey';
-      else if (diff >= 2) cls = 'score-cell-double';
+    // 1. Par Row
+    html += '<tr><td class="row-label">Par</td>';
+    let subPar = 0;
+    indices.forEach(i => {
+      const p = coursePars[i] || 4;
+      subPar += p;
+      html += `<td>${p}</td>`;
+    });
+    html += `<td class="bg-gray font-bold">${subPar}</td>`;
+    if (isBackSection) {
+      let totalAllPar = 0;
+      playedIndices.forEach(i => totalAllPar += (coursePars[i] || 4));
+      html += `<td class="bg-gray-dark font-extrabold">${totalAllPar}</td>`;
     }
-    tableHtml += `<td class="${cls} font-bold">${cs > 0 ? cs : '-'}</td>`;
-  });
-  tableHtml += `<td class="bg-gray-dark font-extrabold text-blue">${compTotal}</td></tr>`;
+    html += '</tr>';
 
-  // 4. Hole-by-Hole Outcome Row
-  tableHtml += '<tr><td class="row-label text-muted">Resultado</td>';
-  let userWon = 0;
-  let compWon = 0;
-  let tied = 0;
-  playedIndices.forEach(i => {
-    const s = userStrokes[i] || 0;
-    const cs = compStrokes[i] || 0;
-    if (s > 0 && cs > 0) {
-      if (s < cs) {
-        userWon++;
-        tableHtml += `<td style="color: #10b981; font-weight: 700;">▲ +${cs - s}</td>`;
-      } else if (cs < s) {
-        compWon++;
-        tableHtml += `<td style="color: #f87171; font-weight: 700;">▼ -${s - cs}</td>`;
-      } else {
-        tied++;
-        tableHtml += '<td style="color: #94a3b8; font-weight: 600;">=</td>';
+    // 2. User Row
+    html += '<tr><td class="row-label text-emerald font-bold">Tú</td>';
+    let subUser = 0;
+    indices.forEach(i => {
+      const s = userStrokes[i] || 0;
+      subUser += s;
+      const p = coursePars[i] || 4;
+      const diff = s - p;
+      let cls = '';
+      if (s > 0) {
+        if (diff <= -1) cls = 'score-cell-birdie';
+        else if (diff === 0) cls = '';
+        else if (diff === 1) cls = 'score-cell-bogey';
+        else if (diff >= 2) cls = 'score-cell-double';
       }
-    } else {
-      tableHtml += '<td>-</td>';
+      html += `<td class="${cls} font-bold">${s > 0 ? s : '-'}</td>`;
+    });
+    html += `<td class="bg-gray font-extrabold text-emerald">${subUser}</td>`;
+    if (isBackSection) {
+      let totalAllUser = 0;
+      playedIndices.forEach(i => totalAllUser += (userStrokes[i] || 0));
+      html += `<td class="bg-gray-dark font-extrabold text-emerald">${totalAllUser}</td>`;
     }
-  });
-  tableHtml += `<td class="bg-gray font-bold" style="font-size: 0.72rem; white-space: nowrap;">${userWon}W - ${compWon}L - ${tied}T</td></tr>`;
+    html += '</tr>';
 
-  // 5. Cumulative Stroke Difference Row
-  tableHtml += '<tr><td class="row-label text-muted font-bold" style="font-size: 0.68rem;">Dif. Acumulada</td>';
-  let cumUser = 0;
-  let cumComp = 0;
-  let hasValidCum = false;
-  playedIndices.forEach(i => {
-    const s = userStrokes[i] || 0;
-    const cs = compStrokes[i] || 0;
-    if (s > 0 && cs > 0) {
-      cumUser += s;
-      cumComp += cs;
-      hasValidCum = true;
-      const diff = cumUser - cumComp;
-      if (diff < 0) {
-        // User leading by |diff| strokes (fewer strokes is better in golf)
-        tableHtml += `<td style="color: #10b981; font-weight: 800; font-size: 0.76rem;">${diff}</td>`;
-      } else if (diff > 0) {
-        // User trailing by diff strokes
-        tableHtml += `<td style="color: #f87171; font-weight: 800; font-size: 0.76rem;">+${diff}</td>`;
-      } else {
-        // All even
-        tableHtml += '<td style="color: #94a3b8; font-weight: 700; font-size: 0.76rem;">E</td>';
+    // 3. Companion Row
+    html += `<tr><td class="row-label text-blue font-bold">${compFirstName}</td>`;
+    let subComp = 0;
+    indices.forEach(i => {
+      const cs = compStrokes[i] || 0;
+      subComp += cs;
+      const p = coursePars[i] || 4;
+      const diff = cs - p;
+      let cls = '';
+      if (cs > 0) {
+        if (diff <= -1) cls = 'score-cell-birdie';
+        else if (diff === 0) cls = '';
+        else if (diff === 1) cls = 'score-cell-bogey';
+        else if (diff >= 2) cls = 'score-cell-double';
       }
-    } else {
-      tableHtml += '<td style="color: var(--text-muted);">-</td>';
+      html += `<td class="${cls} font-bold">${cs > 0 ? cs : '-'}</td>`;
+    });
+    html += `<td class="bg-gray font-extrabold text-blue">${subComp}</td>`;
+    if (isBackSection) {
+      let totalAllComp = 0;
+      playedIndices.forEach(i => totalAllComp += (compStrokes[i] || 0));
+      html += `<td class="bg-gray-dark font-extrabold text-blue">${totalAllComp}</td>`;
     }
-  });
+    html += '</tr>';
 
-  if (hasValidCum) {
-    const finalDiff = cumUser - cumComp;
-    let finalColor = '#94a3b8';
-    let finalText = 'E';
-    if (finalDiff < 0) {
-      finalColor = '#10b981';
-      finalText = `${finalDiff}`;
-    } else if (finalDiff > 0) {
-      finalColor = '#f87171';
-      finalText = `+${finalDiff}`;
+    // 4. Outcome Row (Resultado)
+    html += '<tr><td class="row-label text-muted" style="font-size: 0.65rem;">Resultado</td>';
+    let subUserWon = 0;
+    let subCompWon = 0;
+    let subTied = 0;
+    indices.forEach(i => {
+      const s = userStrokes[i] || 0;
+      const cs = compStrokes[i] || 0;
+      if (s > 0 && cs > 0) {
+        if (s < cs) {
+          subUserWon++;
+          html += `<td style="color: #10b981; font-weight: 700; font-size: 0.72rem;">▲ +${cs - s}</td>`;
+        } else if (cs < s) {
+          subCompWon++;
+          html += `<td style="color: #f87171; font-weight: 700; font-size: 0.72rem;">▼ -${s - cs}</td>`;
+        } else {
+          subTied++;
+          html += '<td style="color: #94a3b8; font-weight: 600; font-size: 0.72rem;">=</td>';
+        }
+      } else {
+        html += '<td>-</td>';
+      }
+    });
+    html += `<td class="bg-gray font-bold" style="font-size: 0.68rem; white-space: nowrap;">${subUserWon}W - ${subCompWon}L</td>`;
+    if (isBackSection) {
+      let allWon = 0, allLost = 0, allTied = 0;
+      playedIndices.forEach(i => {
+        const s = userStrokes[i] || 0;
+        const cs = compStrokes[i] || 0;
+        if (s > 0 && cs > 0) {
+          if (s < cs) allWon++;
+          else if (cs < s) allLost++;
+          else allTied++;
+        }
+      });
+      html += `<td class="bg-gray-dark font-bold" style="font-size: 0.68rem; white-space: nowrap;">${allWon}W - ${allLost}L</td>`;
     }
-    tableHtml += `<td class="bg-gray-dark font-extrabold" style="color: ${finalColor}; font-size: 0.78rem;">${finalText}</td></tr>`;
-  } else {
-    tableHtml += '<td class="bg-gray font-bold">-</td></tr>';
+    html += '</tr>';
+
+    // 5. Cumulative Difference Row
+    html += '<tr><td class="row-label text-muted font-bold" style="font-size: 0.65rem;">Dif. Acumulada</td>';
+    indices.forEach(i => {
+      let cumU = 0;
+      let cumC = 0;
+      for (let k = 0; k <= i; k++) {
+        if (playedIndices.includes(k)) {
+          const s = userStrokes[k] || 0;
+          const cs = compStrokes[k] || 0;
+          if (s > 0 && cs > 0) {
+            cumU += s;
+            cumC += cs;
+          }
+        }
+      }
+      const s = userStrokes[i] || 0;
+      const cs = compStrokes[i] || 0;
+      if (s > 0 && cs > 0) {
+        const diff = cumU - cumC;
+        if (diff < 0) {
+          html += `<td style="color: #10b981; font-weight: 800; font-size: 0.75rem;">${diff}</td>`;
+        } else if (diff > 0) {
+          html += `<td style="color: #f87171; font-weight: 800; font-size: 0.75rem;">+${diff}</td>`;
+        } else {
+          html += '<td style="color: #94a3b8; font-weight: 700; font-size: 0.75rem;">E</td>';
+        }
+      } else {
+        html += '<td style="color: var(--text-muted);">-</td>';
+      }
+    });
+
+    const subDiff = subUser - subComp;
+    let subDiffColor = '#94a3b8';
+    let subDiffText = 'E';
+    if (subDiff < 0) {
+      subDiffColor = '#10b981';
+      subDiffText = `${subDiff}`;
+    } else if (subDiff > 0) {
+      subDiffColor = '#f87171';
+      subDiffText = `+${subDiff}`;
+    }
+    html += `<td class="bg-gray font-extrabold" style="color: ${subDiffColor}; font-size: 0.75rem;">${subDiffText}</td>`;
+
+    if (isBackSection) {
+      let totalAllUser = 0;
+      let totalAllComp = 0;
+      playedIndices.forEach(i => {
+        totalAllUser += (userStrokes[i] || 0);
+        totalAllComp += (compStrokes[i] || 0);
+      });
+      const grandDiff = totalAllUser - totalAllComp;
+      let grandDiffColor = '#94a3b8';
+      let grandDiffText = 'E';
+      if (grandDiff < 0) {
+        grandDiffColor = '#10b981';
+        grandDiffText = `${grandDiff}`;
+      } else if (grandDiff > 0) {
+        grandDiffColor = '#f87171';
+        grandDiffText = `+${grandDiff}`;
+      }
+      html += `<td class="bg-gray-dark font-extrabold" style="color: ${grandDiffColor}; font-size: 0.78rem;">${grandDiffText}</td>`;
+    }
+    html += '</tr>';
+
+    html += '</tbody></table></div></div>';
+    return html;
   }
 
-  tableHtml += '</tbody></table>';
+  let finalHtml = '';
+  if (hasFront && hasBack) {
+    const frontIndices = playedIndices.filter(i => i < 9);
+    const backIndices = playedIndices.filter(i => i >= 9);
+    finalHtml += buildNineTable(frontIndices, 'Ida (Hoyos 1 al 9)', 'OUT', false);
+    finalHtml += buildNineTable(backIndices, 'Vuelta (Hoyos 10 al 18)', 'IN', true);
+  } else if (hasFront) {
+    finalHtml += buildNineTable(playedIndices, 'Ida (Hoyos 1 al 9)', 'TOTAL', false);
+  } else {
+    finalHtml += buildNineTable(playedIndices, 'Vuelta (Hoyos 10 al 18)', 'TOTAL', false);
+  }
 
-  // Summary box
-  const diffTotal = userTotal - compTotal;
+  let totalUserAll = 0;
+  let totalCompAll = 0;
+  playedIndices.forEach(i => {
+    totalUserAll += (userStrokes[i] || 0);
+    totalCompAll += (compStrokes[i] || 0);
+  });
+  const diffTotal = totalUserAll - totalCompAll;
   let outcomeBadge = '';
   if (diffTotal < 0) {
     outcomeBadge = `<span style="background: rgba(16, 185, 129, 0.15); color: #34d399; padding: 0.35rem 0.65rem; border-radius: 9999px; font-weight: 800; font-size: 0.78rem;">🏆 Ganaste por ${Math.abs(diffTotal)} golpes</span>`;
@@ -3140,125 +3315,16 @@ function renderCardComparisonTable(round, companion) {
     outcomeBadge = `<span style="background: rgba(255, 255, 255, 0.08); color: #cbd5e1; padding: 0.35rem 0.65rem; border-radius: 9999px; font-weight: 800; font-size: 0.78rem;">🤝 Empate total</span>`;
   }
 
-  tableHtml += `
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; padding: 0.75rem 1rem; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+  finalHtml += `
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; padding: 0.75rem 1rem; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 0.5rem;">
       <div style="font-size: 0.8rem; font-weight: 700; color: #fff;">
-        Tú: <span class="text-emerald">${userTotal}</span> vs ${companion.name}: <span class="text-blue">${compTotal}</span>
+        Tú: <span class="text-emerald">${totalUserAll}</span> vs ${companion.name}: <span class="text-blue">${totalCompAll}</span>
       </div>
       <div>${outcomeBadge}</div>
     </div>
   `;
 
-  container.innerHTML = tableHtml;
-}
-
-
-// Delete Confirmation
-window.promptDeleteRound = async function(roundId) {
-  if (confirm('¿Estás seguro de que deseas eliminar esta ronda? Esta acción es irreversible.')) {
-    try {
-      if (supabaseConnected && supabaseClient && userSession && userSession.user) {
-        const { error } = await supabaseClient
-          .from('golf_rounds')
-          .delete()
-          .eq('id', roundId);
-        if (error) throw error;
-      } else {
-        rounds = rounds.filter(r => r.id !== roundId);
-        saveData('golf_tracker_rounds', rounds);
-      }
-      await loadData();
-    } catch (err) {
-      alert('Error al eliminar ronda: ' + err.message);
-    }
-  }
-};
-
-// Date Formatter helper
-function formatDate(dateStr) {
-  const parts = dateStr.split('-');
-  if (parts.length === 3) {
-    return parts[2] + '/' + parts[1] + '/' + parts[0];
-  }
-  return dateStr;
-}
-
-
-
-
-
-// Timer update function for Live Rounds
-function updateLiveTimer() {
-  const timerEl = document.getElementById('live-track-timer');
-  if (!timerEl || !liveRoundStartTime) return;
-  
-  const elapsedMs = Date.now() - liveRoundStartTime;
-  const hours = Math.floor(elapsedMs / 3600000);
-  const minutes = Math.floor((elapsedMs % 3600000) / 60000);
-  const seconds = Math.floor((elapsedMs % 60000) / 1000);
-  
-  let formatted = '';
-  if (hours > 0) {
-    formatted = String(hours).padStart(2, '0') + ':' + 
-                String(minutes).padStart(2, '0') + ':' + 
-                String(seconds).padStart(2, '0');
-  } else {
-    formatted = String(minutes).padStart(2, '0') + ':' + 
-                String(seconds).padStart(2, '0');
-  }
-  timerEl.textContent = '⏱️ ' + formatted;
-}
-
-// ---- Live Round Tracker Functions ----
-function startLiveRound() {
-  const courseId = document.getElementById('live-course-select').value;
-  const course = courses.find(c => c.id === courseId);
-  if (!course) return;
-
-  if (supabaseConnected && supabaseClient && userSession && userSession.user) {
-    createMultiplayerLobby(courseId);
-    return;
-  }
-
-  // Read current active modality button from the UI
-  const activeBtn = document.querySelector('.btn-live-mode.active');
-  liveMode = activeBtn ? activeBtn.getAttribute('data-mode') : 'front';
-
-  liveCourse = course;
-  liveRoundActive = true;
-  liveCurrentIndex = 0;
-  liveHoleStartTime = Date.now();
-  liveHolesDuration = Array(18).fill(0);
-  liveFir = Array(18).fill('-');
-  liveFir = Array(18).fill('-');
-
-  // Configure holes list based on modality
-  if (liveMode === 'front') {
-    liveHolesList = [0, 1, 2, 3, 4, 5, 6, 7, 8];
-  } else if (liveMode === 'back') {
-    liveHolesList = [9, 10, 11, 12, 13, 14, 15, 16, 17];
-  } else {
-    liveHolesList = Array.from({length: 18}, (_, i) => i);
-  }
-
-  // Reset arrays
-  liveStrokes = Array(18).fill(0);
-  livePutts = Array(18).fill(0);
-  livePenalties = Array(18).fill(0);
-
-  // Initialize timer
-  liveRoundStartTime = Date.now();
-  if (liveTimerInterval) clearInterval(liveTimerInterval);
-  liveTimerInterval = setInterval(updateLiveTimer, 1000);
-  updateLiveTimer();
-
-  // UI transition
-  document.getElementById('live-setup-view').style.display = 'none';
-  document.getElementById('live-tracker-view').style.display = 'block';
-  updateLiveTrackerVisibility(true);
-
-  renderLiveHole();
-  saveLiveRoundState();
+  container.innerHTML = finalHtml;
 }
 
 function renderLiveHole() {
@@ -3798,7 +3864,7 @@ async function finishLiveRound() {
       totalStrokes: totalStrokes,
       playedPar: playedPar,
       scoreDifferential: scoreDiff,
-      notes: 'Ronda en tiempo real' + (durationText ? ' | Duración: ' + durationText : '') + companionNotes + (durationText ? ' | Duración: ' + durationText : ''),
+      notes: 'Ronda en tiempo real' + (durationText ? ' | Duración: ' + durationText : '') + companionNotes + (holeDurationsStr ? ' | Hoyos: ' + holeDurationsStr : '') + (firStr ? ' | FIR: ' + firStr : ''),
       course: liveCourse
     };
 
@@ -6405,14 +6471,42 @@ function renderTimeEvolutionChart() {
 
   if (!ctx) return;
 
+  // Auto-detect: if current filter has 0 records but the other has records, auto-switch
+  const chronological = [...rounds].sort((a, b) => new Date(a.date) - new Date(b.date));
+  
+  const count9 = chronological.filter(r => {
+    const p = r.strokes ? r.strokes.filter(s => s > 0).length : 0;
+    return p < 18 && parseRoundDurationMinutes(r.notes) !== null;
+  }).length;
+
+  const count18 = chronological.filter(r => {
+    const p = r.strokes ? r.strokes.filter(s => s > 0).length : 0;
+    return p === 18 && parseRoundDurationMinutes(r.notes) !== null;
+  }).length;
+
+  if (currentTimeHolesFilter === 9 && count9 === 0 && count18 > 0) {
+    currentTimeHolesFilter = 18;
+    const b9 = document.getElementById('btn-time-filter-9');
+    const b18 = document.getElementById('btn-time-filter-18');
+    if (b9 && b18) {
+      b9.classList.remove('active');
+      b18.classList.add('active');
+    }
+  } else if (currentTimeHolesFilter === 18 && count18 === 0 && count9 > 0) {
+    currentTimeHolesFilter = 9;
+    const b9 = document.getElementById('btn-time-filter-9');
+    const b18 = document.getElementById('btn-time-filter-18');
+    if (b9 && b18) {
+      b18.classList.remove('active');
+      b9.classList.add('active');
+    }
+  }
+
   const targetHoles = currentTimeHolesFilter; // 9 or 18
   const validRounds = [];
 
-  // Sort rounds chronologically ascending
-  const chronological = [...rounds].sort((a, b) => new Date(a.date) - new Date(b.date));
-
   chronological.forEach(r => {
-    const playedCount = r.strokes.filter(s => s > 0).length;
+    const playedCount = r.strokes ? r.strokes.filter(s => s > 0).length : 0;
     const matchesHoles = (targetHoles === 9 && playedCount < 18) || (targetHoles === 18 && playedCount === 18);
     if (matchesHoles) {
       const durMins = parseRoundDurationMinutes(r.notes);
@@ -6509,67 +6603,14 @@ function renderTimeEvolutionChart() {
           }
         },
         x: {
-          grid: { color: 'rgba(255,255,255,0.02)' },
+          grid: { display: false },
           ticks: { color: '#94a3b8', font: { size: 9 } }
         }
       }
-    },
-    plugins: [
-      {
-        id: 'timeDatalabels',
-        afterDatasetsDraw(chart) {
-          const { ctx, chartArea } = chart;
-          if (!chartArea) return;
-          ctx.save();
-          ctx.font = 'bold 8.5px Inter, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'bottom';
-
-          const meta = chart.getDatasetMeta(0);
-          if (!meta || meta.hidden) return;
-
-          meta.data.forEach((element, index) => {
-            const val = validRounds[index].durationFormatted;
-            const x = element.x;
-            const y = element.y;
-            if (typeof x !== 'number' || typeof y !== 'number') return;
-
-            const textWidth = ctx.measureText(val).width;
-            const pillW = textWidth + 8;
-            const pillH = 14;
-            const pillX = x - pillW / 2;
-
-            let pillY = y - pillH - 4;
-            let textY = pillY + pillH - 2;
-            if (pillY < chartArea.top) {
-              pillY = y + 4;
-              textY = pillY + pillH - 2;
-            }
-
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-            ctx.beginPath();
-            const r = 3;
-            ctx.moveTo(pillX + r, pillY);
-            ctx.lineTo(pillX + pillW - r, pillY);
-            ctx.quadraticCurveTo(pillX + pillW, pillY, pillX + pillW, pillY + r);
-            ctx.lineTo(pillX + pillW, pillY + pillH - r);
-            ctx.quadraticCurveTo(pillX + pillW, pillY + pillH, pillX + pillW - r, pillY + pillH);
-            ctx.lineTo(pillX + r, pillY + pillH);
-            ctx.quadraticCurveTo(pillX, pillY + pillH, pillX, pillY + pillH - r);
-            ctx.lineTo(pillX, pillY + r);
-            ctx.quadraticCurveTo(pillX, pillY, pillX + r, pillY);
-            ctx.closePath();
-            ctx.fill();
-
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(val, x, textY);
-          });
-          ctx.restore();
-        }
-      }
-    ]
+    }
   });
 }
+
 
 function findBestDefaultAnalysisFilters() {
   if (rounds.length === 0) return { courseId: '', nineType: 'both' };
@@ -6675,7 +6716,7 @@ function renderHoleAnalysisCharts() {
     for (let i = 0; i < 18; i++) holesRange.push(i);
   }
   
-  // 1. Calculate hole averages
+  // 1. Calculate hole averages & extract latest round
   const holeLabels = [];
   const holeAverages = [];
   const holePars = [];
@@ -6694,38 +6735,74 @@ function renderHoleAnalysisCharts() {
     });
     holeAverages.push(count > 0 ? parseFloat((sum / count).toFixed(1)) : null);
   });
+
+  // Extract latest round on this course
+  const latestRound = courseRounds.length > 0 ? courseRounds[courseRounds.length - 1] : null;
+  const latestRoundStrokes = [];
+  if (latestRound) {
+    holesRange.forEach(i => {
+      const s = (latestRound.strokes && latestRound.strokes[i] > 0)
+        ? (latestRound.strokes[i] + (latestRound.penalties && latestRound.penalties[i] ? latestRound.penalties[i] : 0))
+        : null;
+      latestRoundStrokes.push(s);
+    });
+  }
   
-  // Plot Averages
+  // Plot Averages with Latest Round Red Line
   const ctxAvg = document.getElementById('chart-hole-averages');
   if (ctxAvg) {
     if (chartHoleAveragesInstance) chartHoleAveragesInstance.destroy();
+
+    const datasets = [
+      {
+        label: 'Promedio Golpes',
+        data: holeAverages,
+        backgroundColor: 'rgba(59, 130, 246, 0.75)',
+        borderColor: '#3b82f6',
+        borderWidth: 1,
+        borderRadius: 4,
+        order: 3
+      },
+      {
+        label: 'Par de Hoyo',
+        data: holePars,
+        type: 'line',
+        borderColor: '#34d399',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        borderDash: [4, 4],
+        pointRadius: 3,
+        pointBackgroundColor: '#34d399',
+        tension: 0.1,
+        fill: false,
+        order: 2
+      }
+    ];
+
+    if (latestRound) {
+      datasets.push({
+        label: 'Última Salida (' + formatDate(latestRound.date) + ')',
+        data: latestRoundStrokes,
+        type: 'line',
+        borderColor: '#ef4444',
+        backgroundColor: 'rgba(239, 68, 68, 0.08)',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#ef4444',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 1.5,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        tension: 0.15,
+        fill: false,
+        order: 1
+      });
+    }
     
     chartHoleAveragesInstance = new Chart(ctxAvg, {
       type: 'bar',
       data: {
         labels: holeLabels,
-        datasets: [
-          {
-            label: 'Promedio Golpes',
-            data: holeAverages,
-            backgroundColor: 'rgba(59, 130, 246, 0.75)',
-            borderColor: '#3b82f6',
-            borderWidth: 1,
-            borderRadius: 4
-          },
-          {
-            label: 'Par de Hoyo',
-            data: holePars,
-            type: 'line',
-            borderColor: '#34d399',
-            backgroundColor: 'rgba(16, 185, 129, 0.08)',
-            borderWidth: 2,
-            borderDash: [4, 4],
-            pointRadius: 3,
-            tension: 0.1,
-            fill: true
-          }
-        ]
+        datasets: datasets
       },
       options: {
         responsive: true,

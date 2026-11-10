@@ -3302,3 +3302,35 @@ body.live-round-active #live-tracker-view .card-body {
   background: rgba(59, 130, 246, 0.2) !important;
   color: #93c5fd !important;
 }
+
+/* Card Comparison View (vs Compañero) - Responsive Layout */
+#view-card-compare-panel {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#view-card-compare-table-container {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 0.5rem;
+  box-sizing: border-box;
+}
+
+.compare-nine-section {
+  margin-bottom: 1.25rem;
+  width: 100%;
+}
+
+.compare-nine-header {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #38bdf8;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.45rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
