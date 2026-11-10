@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- CSS Stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=112">
+  <link rel="stylesheet" href="styles.css?v=113">
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Supabase JS Client CDN -->
@@ -362,6 +362,35 @@
           <div id="live-hole-meta-strip" style="display: flex; gap: 0.5rem; align-items: center; justify-content: center; flex-wrap: wrap; margin-bottom: -0.25rem;">
             <!-- Populated dynamically -->
           </div>
+
+          <!-- Live GPS Shot Tracking Floating Banner -->
+          <div id="live-gps-tracking-banner" class="live-gps-tracking-banner" style="display: none;">
+            <div class="gps-banner-top">
+              <div class="gps-pulse-container">
+                <span class="gps-pulse-dot"></span>
+                <span class="gps-tracking-label">Midiendo <strong id="gps-banner-club">Driver</strong> en Hoyo <span id="gps-banner-hole">1</span></span>
+              </div>
+              <span class="gps-accuracy-pill" id="gps-banner-accuracy">🟢 ±3m</span>
+            </div>
+            <div class="gps-banner-center">
+              <div class="gps-meters-hero">
+                <span class="gps-hero-val" id="gps-banner-dist">0</span>
+                <span class="gps-hero-unit">m</span>
+              </div>
+              <span class="gps-hero-yd" id="gps-banner-yd">(0 yd)</span>
+            </div>
+            <div class="gps-banner-actions">
+              <button type="button" class="btn btn-sm btn-primary btn-gps-finish" id="btn-gps-banner-finish">
+                <span>⏹️ Marcar Bola (Guardar)</span>
+              </button>
+              <button type="button" class="btn btn-xs btn-outline btn-gps-cancel" id="btn-gps-banner-cancel" title="Cancelar medición">
+                ✕ Cancelar
+              </button>
+            </div>
+          </div>
+
+          <!-- Live Hole Measured Shots Badges -->
+          <div id="live-hole-shots-container" class="live-hole-shots-container" style="display: none;"></div>
 
           <div class="live-hole-display-container">
             <!-- Circle 1: Hoyo -->
@@ -984,9 +1013,84 @@
   </div>
 
   <!-- JavaScript Application -->
-  <script src="app.js?v=112"></script>
+  <script src="app.js?v=113"></script>
 
 
+
+  <!-- Modal 7: GPS Shot Tracker & Rangefinder -->
+  <div class="modal-overlay" id="modal-gps-tracker">
+    <div class="modal-content max-w-sm" style="text-align: center;">
+      <div class="modal-header">
+        <h3 class="modal-title">📍 Medidor de Golpe GPS</h3>
+        <button class="modal-close" data-close="modal-gps-tracker">&times;</button>
+      </div>
+      <div class="modal-body space-y-4" style="display: flex; flex-direction: column; gap: 0.85rem; align-items: center; padding: 1.25rem;">
+        
+        <!-- Satellite Status Badge -->
+        <div id="gps-modal-status-badge" class="gps-status-badge">
+          <span id="gps-status-dot" class="gps-status-dot ready"></span>
+          <span id="gps-status-text">Listo para medir</span>
+          <span id="gps-modal-accuracy" class="gps-accuracy-detail"></span>
+        </div>
+
+        <!-- Big Distance Display -->
+        <div class="gps-modal-display-card">
+          <div class="gps-modal-hero">
+            <span class="gps-modal-number" id="gps-modal-dist">0</span>
+            <span class="gps-modal-unit">METROS</span>
+          </div>
+          <span class="gps-modal-secondary" id="gps-modal-yd">0 yardas</span>
+          <span class="gps-modal-club-badge" id="gps-modal-active-club-badge">Palo: Driver</span>
+        </div>
+
+        <!-- Club Selector Grid -->
+        <div class="gps-club-selector-wrap" id="gps-club-selector-wrap">
+          <span class="gps-section-label">¿Con qué palo vas a tirar?</span>
+          <div class="gps-clubs-scroll">
+            <button type="button" class="club-chip active" data-club="Driver">🏌️ Driver</button>
+            <button type="button" class="club-chip" data-club="M3">🪵 M3</button>
+            <button type="button" class="club-chip" data-club="M5">🪵 M5</button>
+            <button type="button" class="club-chip" data-club="Híbrido">⚡ Híb</button>
+            <button type="button" class="club-chip" data-club="H4">🎯 H4</button>
+            <button type="button" class="club-chip" data-club="H5">🎯 H5</button>
+            <button type="button" class="club-chip" data-club="H6">🎯 H6</button>
+            <button type="button" class="club-chip" data-club="H7">🎯 H7</button>
+            <button type="button" class="club-chip" data-club="H8">🎯 H8</button>
+            <button type="button" class="club-chip" data-club="H9">🎯 H9</button>
+            <button type="button" class="club-chip" data-club="PW">⛳ PW</button>
+            <button type="button" class="club-chip" data-club="GW">⛳ GW</button>
+            <button type="button" class="club-chip" data-club="SW">🏖️ SW</button>
+            <button type="button" class="club-chip" data-club="LW">⛳ LW</button>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="width: 100%; display: flex; flex-direction: column; gap: 0.6rem;">
+          <button type="button" class="btn btn-primary btn-block" id="btn-gps-start-shot" style="padding: 0.85rem; font-size: 0.95rem; font-weight: 800; background: linear-gradient(135deg, #059669, #10b981);">
+            📍 Marcar Salida del Tiro
+          </button>
+          <button type="button" class="btn btn-primary btn-block" id="btn-gps-finish-shot" style="display: none; padding: 0.85rem; font-size: 0.95rem; font-weight: 800; background: linear-gradient(135deg, #2563eb, #3b82f6);">
+            ⏹️ Llegué a la Bola (Guardar Golpe)
+          </button>
+          <button type="button" class="btn btn-outline btn-block btn-sm" id="btn-gps-cancel-shot" style="display: none; color: #f87171; border-color: rgba(239, 68, 68, 0.4);">
+            ✕ Cancelar Medición
+          </button>
+        </div>
+
+        <!-- Instructions / Explanatory Text -->
+        <p id="gps-instructions-text" class="text-muted" style="font-size: 0.72rem; line-height: 1.35; margin: 0;">
+          Parate donde vas a ejecutar el tiro, elegí tu palo y tocá <strong>"Marcar Salida"</strong>. Luego caminá hacia donde cayó la bola para ver la distancia en tiempo real.
+        </p>
+
+        <!-- List of recorded shots in this round -->
+        <div id="gps-shots-history-container" style="width: 100%; border-top: 1px solid var(--border-color); padding-top: 0.75rem; text-align: left; display: none;">
+          <span style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.04em; display: block; margin-bottom: 0.4rem;">Tiros Medidos en Esta Salida</span>
+          <div id="gps-shots-history-list" style="display: flex; flex-direction: column; gap: 0.35rem; max-height: 130px; overflow-y: auto;"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
 
   <!-- Modal 6: Autenticación de Cuentas (Login / Registro) -->
   <div class="modal-overlay" id="modal-auth">

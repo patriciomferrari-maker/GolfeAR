@@ -855,6 +855,64 @@ function updateLiveTrackerVisibility(isActive) {
   if (dropdown && !isActive) dropdown.style.display = 'none';
 }
 
+// Function to start a live round (single player / local / multiplayer fallback)
+function startLiveRound() {
+  const courseId = document.getElementById('live-course-select').value;
+  const course = courses.find(c => c.id === courseId);
+  if (!course) {
+    alert('Seleccioná una cancha para comenzar.');
+    return;
+  }
+
+  // If user is connected to cloud, offer multiplayer setup or launch
+  if (supabaseConnected && supabaseClient && userSession && userSession.user) {
+    createMultiplayerLobby(courseId);
+    return;
+  }
+
+  // Read current active modality button from the UI
+  const activeBtn = document.querySelector('.btn-live-mode.active');
+  liveMode = activeBtn ? activeBtn.getAttribute('data-mode') : 'front';
+
+  liveCourse = course;
+  liveRoundActive = true;
+  liveCurrentIndex = 0;
+  liveHoleStartTime = Date.now();
+  liveHolesDuration = Array(18).fill(0);
+  liveFir = Array(18).fill('-');
+
+  // Configure holes list based on modality
+  if (liveMode === 'front') {
+    liveHolesList = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+  } else if (liveMode === 'back') {
+    liveHolesList = [9, 10, 11, 12, 13, 14, 15, 16, 17];
+  } else {
+    liveHolesList = Array.from({length: 18}, (_, i) => i);
+  }
+
+  // Reset arrays locally
+  liveStrokes = Array(18).fill(0);
+  livePutts = Array(18).fill(0);
+  livePenalties = Array(18).fill(0);
+
+  // Restore active shots or reset
+  const savedShots = localStorage.getItem('golf_tracker_active_shots');
+  liveRoundShots = savedShots ? JSON.parse(savedShots) : [];
+
+  liveRoundStartTime = Date.now();
+  if (liveTimerInterval) clearInterval(liveTimerInterval);
+  liveTimerInterval = setInterval(updateLiveTimer, 1000);
+  updateLiveTimer();
+
+  // UI transition
+  document.getElementById('live-setup-view').style.display = 'none';
+  document.getElementById('live-tracker-view').style.display = 'block';
+  updateLiveTrackerVisibility(true);
+
+  renderLiveHole();
+  saveLiveRoundState();
+}
+
 function setupEventListeners() {
   // Modal toggle listeners
   document.getElementById('btn-open-register').addEventListener('click', () => openModal('modal-register'));
@@ -1116,6 +1174,40 @@ function setupEventListeners() {
       renderHoleAnalysisCharts();
     });
   }
+
+  // GPS Shot Tracker Event Listeners
+  const btnStartGpsShot = document.getElementById('btn-gps-start-shot');
+  const btnFinishGpsShot = document.getElementById('btn-gps-finish-shot');
+  const btnCancelGpsShot = document.getElementById('btn-gps-cancel-shot');
+  const btnBannerFinish = document.getElementById('btn-gps-banner-finish');
+  const btnBannerCancel = document.getElementById('btn-gps-banner-cancel');
+
+  if (btnStartGpsShot) {
+    btnStartGpsShot.addEventListener('click', () => startGpsShotTracking());
+  }
+  if (btnFinishGpsShot) {
+    btnFinishGpsShot.addEventListener('click', finishGpsShotTracking);
+  }
+  if (btnCancelGpsShot) {
+    btnCancelGpsShot.addEventListener('click', cancelGpsShotTracking);
+  }
+  if (btnBannerFinish) {
+    btnBannerFinish.addEventListener('click', finishGpsShotTracking);
+  }
+  if (btnBannerCancel) {
+    btnBannerCancel.addEventListener('click', cancelGpsShotTracking);
+  }
+
+  // Club Selector Chips
+  document.querySelectorAll('.club-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.club-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      selectedGpsClub = chip.getAttribute('data-club');
+      const badge = document.getElementById('gps-modal-active-club-badge');
+      if (badge) badge.textContent = 'Palo: ' + selectedGpsClub;
+    });
+  });
 
   // Connect to lobby by ID code
   const btnJoinLobbyById = document.getElementById('btn-join-lobby-by-id');
@@ -3483,8 +3575,24 @@ function renderLiveHole() {
       '</span>';
     }
 
-    metaStrip.innerHTML = distBadgeHTML;
+    const isTrackingActive = !!activeGpsTracking;
+    const gpsBtnHTML = '<button type="button" class="live-meta-badge live-gps-badge' + (isTrackingActive ? ' active-tracking' : '') + '" id="btn-open-live-gps" title="Medir distancia de tiro con GPS">' +
+      '<span>📍 Medir Golpe GPS</span>' +
+    '</button>';
+
+    metaStrip.innerHTML = distBadgeHTML + gpsBtnHTML;
+
+    const btnGps = document.getElementById('btn-open-live-gps');
+    if (btnGps) {
+      btnGps.onclick = () => {
+        openGpsModal();
+      };
+    }
   }
+
+  // Render recorded shots on current hole and update active banner
+  renderLiveHoleShots();
+  updateGpsBannerUI();
 
   // Subtitle update removed for clean UI
 
@@ -3884,6 +3992,12 @@ async function finishLiveRound() {
       scoreDiff = diff9 * 2.0;
     }
 
+    let gpsShotsNote = '';
+    if (liveRoundShots && liveRoundShots.length > 0) {
+      const summaryShots = liveRoundShots.map(s => `H${s.holeNum}:${s.club}(${s.distanceM}m)`).join(', ');
+      gpsShotsNote = ' | GPS: ' + summaryShots;
+    }
+
     const newRound = {
       id: 'round_' + Date.now(),
       courseId: liveCourse.id,
@@ -3894,7 +4008,8 @@ async function finishLiveRound() {
       totalStrokes: totalStrokes,
       playedPar: playedPar,
       scoreDifferential: scoreDiff,
-      notes: 'Ronda en tiempo real' + (durationText ? ' | Duración: ' + durationText : '') + companionNotes + (holeDurationsStr ? ' | Hoyos: ' + holeDurationsStr : '') + (firStr ? ' | FIR: ' + firStr : ''),
+      notes: 'Ronda en tiempo real' + (durationText ? ' | Duración: ' + durationText : '') + companionNotes + (holeDurationsStr ? ' | Hoyos: ' + holeDurationsStr : '') + (firStr ? ' | FIR: ' + firStr : '') + gpsShotsNote,
+      shots: [...liveRoundShots],
       course: liveCourse
     };
 
@@ -3922,6 +4037,9 @@ async function finishLiveRound() {
       }
       
       localStorage.removeItem('golf_tracker_live_round');
+      liveRoundShots = [];
+      localStorage.removeItem('golf_tracker_active_shots');
+      if (activeGpsTracking) cancelGpsShotTracking();
       liveRoundActive = false;
       liveCourse = null;
 
@@ -7133,5 +7251,354 @@ window.toggleCaddieBody = function() {
   } else {
     textEl.style.display = 'none';
     if (iconEl) iconEl.textContent = '▲';
+  }
+};
+
+
+// ====================================================================
+// GPS RANGEFINDER & SHOT DISTANCE TRACKER MODULE
+// ====================================================================
+
+let activeGpsTracking = null;
+let gpsWatchId = null;
+let liveRoundShots = [];
+let selectedGpsClub = 'Driver';
+
+function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371000; // Earth's radius in meters
+  const toRad = deg => deg * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * 
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c);
+}
+
+function openGpsModal() {
+  updateGpsModalUI();
+  openModal('modal-gps-tracker');
+  checkGpsSignal();
+}
+
+function checkGpsSignal() {
+  if (!navigator.geolocation) {
+    setGpsStatus('error', 'GPS no soportado');
+    return;
+  }
+  
+  setGpsStatus('ready', 'Conectando satélites...');
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const acc = Math.round(pos.coords.accuracy);
+      const accText = '±' + acc + 'm';
+      if (acc <= 5) setGpsStatus('ready', 'Señal Satelital Óptima', accText);
+      else if (acc <= 12) setGpsStatus('ready', 'Señal Satelital Buena', accText);
+      else setGpsStatus('ready', 'Señal Satelital Regular', accText);
+    },
+    err => {
+      console.warn('GPS signal check:', err);
+      setGpsStatus('error', 'Ubicación desactivada o sin permiso');
+    },
+    { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+  );
+}
+
+function setGpsStatus(type, text, detail = '') {
+  const dot = document.getElementById('gps-status-dot');
+  const txt = document.getElementById('gps-status-text');
+  const accEl = document.getElementById('gps-modal-accuracy');
+  if (dot) dot.className = 'gps-status-dot ' + type;
+  if (txt) txt.textContent = text;
+  if (accEl) accEl.textContent = detail ? '(' + detail + ')' : '';
+}
+
+function startGpsShotTracking(club = selectedGpsClub) {
+  if (!navigator.geolocation) {
+    alert('Tu dispositivo o navegador no soporta GPS.');
+    return;
+  }
+
+  const startBtn = document.getElementById('btn-gps-start-shot');
+  if (startBtn) {
+    startBtn.disabled = true;
+    startBtn.innerHTML = '<span>📡 Fijando posición satelital...</span>';
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      const acc = Math.round(pos.coords.accuracy);
+      const currentHoleNum = (liveRoundActive && liveHolesList) ? (liveHolesList[liveCurrentIndex] + 1) : 1;
+
+      activeGpsTracking = {
+        startLat: lat,
+        startLon: lon,
+        startTime: Date.now(),
+        club: club || selectedGpsClub,
+        holeIdx: liveCurrentIndex,
+        holeNum: currentHoleNum,
+        lastLat: lat,
+        lastLon: lon,
+        distanceM: 0,
+        distanceYd: 0,
+        accuracy: acc
+      };
+
+      if (navigator.vibrate) navigator.vibrate([40, 80, 40]);
+
+      startGpsWatch();
+      updateGpsModalUI();
+      updateGpsBannerUI();
+
+      if (typeof showPremiumToast === 'function') {
+        showPremiumToast('📍 Salida marcada con ' + activeGpsTracking.club + '. ¡Caminá hacia tu bola!');
+      }
+    },
+    err => {
+      alert('No se pudo fijar la señal GPS. Habilitá la ubicación en tu navegador para continuar.');
+      if (startBtn) {
+        startBtn.disabled = false;
+        startBtn.innerHTML = '<span>📍 Marcar Salida del Tiro</span>';
+      }
+    },
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+  );
+}
+
+function startGpsWatch() {
+  if (gpsWatchId !== null) {
+    navigator.geolocation.clearWatch(gpsWatchId);
+    gpsWatchId = null;
+  }
+
+  gpsWatchId = navigator.geolocation.watchPosition(
+    pos => {
+      if (!activeGpsTracking) return;
+
+      const currentLat = pos.coords.latitude;
+      const currentLon = pos.coords.longitude;
+      const currentAcc = Math.round(pos.coords.accuracy);
+
+      const dist = calculateHaversineDistance(
+        activeGpsTracking.startLat,
+        activeGpsTracking.startLon,
+        currentLat,
+        currentLon
+      );
+
+      activeGpsTracking.lastLat = currentLat;
+      activeGpsTracking.lastLon = currentLon;
+      activeGpsTracking.distanceM = dist;
+      activeGpsTracking.distanceYd = Math.round(dist * 1.09361);
+      activeGpsTracking.accuracy = currentAcc;
+
+      updateGpsLiveDisplays();
+    },
+    err => {
+      console.warn('GPS watch error:', err);
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+
+function finishGpsShotTracking() {
+  if (!activeGpsTracking) return;
+
+  if (gpsWatchId !== null) {
+    navigator.geolocation.clearWatch(gpsWatchId);
+    gpsWatchId = null;
+  }
+
+  const recorded = {
+    id: 'shot_' + Date.now(),
+    holeNum: activeGpsTracking.holeNum,
+    club: activeGpsTracking.club,
+    distanceM: activeGpsTracking.distanceM,
+    distanceYd: activeGpsTracking.distanceYd,
+    accuracyM: activeGpsTracking.accuracy,
+    timestamp: new Date().toISOString()
+  };
+
+  liveRoundShots.push(recorded);
+  saveData('golf_tracker_active_shots', liveRoundShots);
+
+  const finalM = recorded.distanceM;
+  const finalYd = recorded.distanceYd;
+  const finalClub = recorded.club;
+
+  activeGpsTracking = null;
+
+  if (navigator.vibrate) navigator.vibrate([60, 100, 60, 100, 60]);
+
+  updateGpsModalUI();
+  updateGpsBannerUI();
+  renderLiveHoleShots();
+  closeModal('modal-gps-tracker');
+
+  if (typeof showPremiumToast === 'function') {
+    showPremiumToast('🎯 ¡Tiro registrado! ' + finalM + 'm (' + finalYd + ' yd) con ' + finalClub);
+  }
+}
+
+function cancelGpsShotTracking() {
+  if (gpsWatchId !== null) {
+    navigator.geolocation.clearWatch(gpsWatchId);
+    gpsWatchId = null;
+  }
+  activeGpsTracking = null;
+  updateGpsModalUI();
+  updateGpsBannerUI();
+  if (typeof showPremiumToast === 'function') {
+    showPremiumToast('Medición de tiro cancelada.');
+  }
+}
+
+function updateGpsLiveDisplays() {
+  if (!activeGpsTracking) return;
+
+  const m = activeGpsTracking.distanceM || 0;
+  const yd = activeGpsTracking.distanceYd || 0;
+  const acc = activeGpsTracking.accuracy || 3;
+
+  const bDist = document.getElementById('gps-banner-dist');
+  const bYd = document.getElementById('gps-banner-yd');
+  const bAcc = document.getElementById('gps-banner-accuracy');
+  if (bDist) bDist.textContent = m;
+  if (bYd) bYd.textContent = '(' + yd + ' yd)';
+  if (bAcc) bAcc.textContent = '🟢 ±' + acc + 'm';
+
+  const mDist = document.getElementById('gps-modal-dist');
+  const mYd = document.getElementById('gps-modal-yd');
+  if (mDist) mDist.textContent = m;
+  if (mYd) mYd.textContent = yd + ' yardas';
+}
+
+function updateGpsBannerUI() {
+  const banner = document.getElementById('live-gps-tracking-banner');
+  const gpsBadge = document.getElementById('btn-open-live-gps');
+
+  if (!banner) return;
+
+  if (activeGpsTracking) {
+    banner.style.display = 'flex';
+    const cEl = document.getElementById('gps-banner-club');
+    const hEl = document.getElementById('gps-banner-hole');
+    if (cEl) cEl.textContent = activeGpsTracking.club;
+    if (hEl) hEl.textContent = activeGpsTracking.holeNum;
+    updateGpsLiveDisplays();
+    if (gpsBadge) gpsBadge.classList.add('active-tracking');
+  } else {
+    banner.style.display = 'none';
+    if (gpsBadge) gpsBadge.classList.remove('active-tracking');
+  }
+}
+
+function updateGpsModalUI() {
+  const startBtn = document.getElementById('btn-gps-start-shot');
+  const finishBtn = document.getElementById('btn-gps-finish-shot');
+  const cancelBtn = document.getElementById('btn-gps-cancel-shot');
+  const clubWrap = document.getElementById('gps-club-selector-wrap');
+  const activeBadge = document.getElementById('gps-modal-active-club-badge');
+  const instructions = document.getElementById('gps-instructions-text');
+
+  if (activeGpsTracking) {
+    if (startBtn) startBtn.style.display = 'none';
+    if (finishBtn) finishBtn.style.display = 'block';
+    if (cancelBtn) cancelBtn.style.display = 'block';
+    if (clubWrap) clubWrap.style.display = 'none';
+    if (activeBadge) {
+      activeBadge.textContent = 'Palo: ' + activeGpsTracking.club + ' (Hoyo ' + activeGpsTracking.holeNum + ')';
+      activeBadge.style.display = 'inline-block';
+    }
+    if (instructions) {
+      instructions.innerHTML = '🚶 <strong>Caminando hacia la bola...</strong> La distancia se actualiza a cada paso. Al llegar, tocá <strong>"Llegué a la Bola"</strong>.';
+    }
+    setGpsStatus('tracking', 'Midiendo en vivo', '±' + (activeGpsTracking.accuracy || 3) + 'm');
+    updateGpsLiveDisplays();
+  } else {
+    if (startBtn) {
+      startBtn.style.display = 'block';
+      startBtn.disabled = false;
+      startBtn.innerHTML = '<span>📍 Marcar Salida del Tiro</span>';
+    }
+    if (finishBtn) finishBtn.style.display = 'none';
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    if (clubWrap) clubWrap.style.display = 'block';
+    if (activeBadge) {
+      activeBadge.textContent = 'Palo: ' + selectedGpsClub;
+      activeBadge.style.display = 'inline-block';
+    }
+    if (instructions) {
+      instructions.innerHTML = 'Parate donde vas a ejecutar el tiro, elegí tu palo y tocá <strong>"Marcar Salida"</strong>. Luego caminá hacia donde cayó la bola para ver la distancia en tiempo real.';
+    }
+    const mDist = document.getElementById('gps-modal-dist');
+    const mYd = document.getElementById('gps-modal-yd');
+    if (mDist) mDist.textContent = '0';
+    if (mYd) mYd.textContent = '0 yardas';
+    setGpsStatus('ready', 'Listo para medir');
+  }
+
+  renderGpsShotsHistoryList();
+}
+
+function renderLiveHoleShots() {
+  const container = document.getElementById('live-hole-shots-container');
+  if (!container) return;
+
+  const currentHoleNum = (liveRoundActive && liveHolesList) ? (liveHolesList[liveCurrentIndex] + 1) : 1;
+  const holeShots = liveRoundShots.filter(s => s.holeNum === currentHoleNum);
+
+  if (holeShots.length === 0) {
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+
+  container.style.display = 'flex';
+  container.innerHTML = holeShots.map(s => (
+    '<span class="shot-pill">' +
+      '<span>📍 ' + s.club + ':</span> ' +
+      '<strong>' + s.distanceM + 'm</strong> ' +
+      '<span style="opacity: 0.7;">(' + s.distanceYd + 'yd)</span>' +
+    '</span>'
+  )).join('');
+}
+
+function renderGpsShotsHistoryList() {
+  const container = document.getElementById('gps-shots-history-container');
+  const list = document.getElementById('gps-shots-history-list');
+  if (!container || !list) return;
+
+  if (liveRoundShots.length === 0) {
+    container.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
+
+  container.style.display = 'block';
+  list.innerHTML = liveRoundShots.map((s, idx) => (
+    '<div class="gps-history-item">' +
+      '<div>' +
+        '<span class="gps-history-club">' + s.club + '</span>' +
+        '<span style="color: var(--text-muted); font-size: 0.7rem; margin-left: 0.35rem;">Hoyo ' + s.holeNum + '</span>' +
+      '</div>' +
+      '<div style="display: flex; align-items: center; gap: 0.5rem;">' +
+        '<span class="gps-history-dist">' + s.distanceM + 'm <span style="font-size: 0.68rem; font-weight: normal; color: #94a3b8;">(' + s.distanceYd + 'yd)</span></span>' +
+        '<button type="button" onclick="deleteRecordedShot(' + idx + ')" style="background: none; border: none; color: #f87171; cursor: pointer; font-size: 0.8rem; padding: 0.15rem 0.3rem;" title="Eliminar tiro">✕</button>' +
+      '</div>' +
+    '</div>'
+  )).join('');
+}
+
+window.deleteRecordedShot = function(idx) {
+  if (confirm('¿Eliminar este tiro registrado?')) {
+    liveRoundShots.splice(idx, 1);
+    saveData('golf_tracker_active_shots', liveRoundShots);
+    renderGpsShotsHistoryList();
+    renderLiveHoleShots();
   }
 };
