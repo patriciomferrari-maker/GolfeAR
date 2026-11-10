@@ -1717,30 +1717,29 @@ h1 {
     padding: 1rem 0.75rem !important;
   }
   
-  /* Header stacking */
+  /* Header mobile stays clean single-line */
   .app-header {
-    flex-direction: column !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
     align-items: center !important;
-    text-align: center !important;
-    padding-bottom: 1rem !important;
+    text-align: left !important;
+    padding: 0.5rem 0 !important;
+    padding-top: calc(0.5rem + env(safe-area-inset-top)) !important;
   }
   
   .logo-area {
-    flex-direction: column !important;
-    gap: 0.25rem !important;
+    flex-direction: row !important;
+    gap: 0.45rem !important;
   }
   
   .header-actions {
-    width: 100% !important;
-    justify-content: center !important;
-    gap: 0.5rem !important;
+    width: auto !important;
+    justify-content: flex-end !important;
+    gap: 0.4rem !important;
   }
   
   .header-actions button, .header-actions a, .header-actions .user-email-display {
-    flex: 1 !important;
-    justify-content: center !important;
-    font-size: 0.8rem !important;
-    padding: 0.5rem 0.75rem !important;
+    flex: initial !important;
   }
 
   /* Nav Tabs */

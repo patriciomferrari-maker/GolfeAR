@@ -1,3 +1,17 @@
+// Utility: Date formatter
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+    const parts = dateStr.split('T')[0].split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  return `${day}/${month}/${d.getFullYear()}`;
+}
+
 // Global Application State
 let courses = [];
 let rounds = [];
@@ -705,9 +719,16 @@ function ensureCostaRoundsInjected() {
       }
     }
   }
+
+
+  // Persist rounds locally so values are immediately available even offline or unauthenticated
+  saveData('golf_tracker_rounds', rounds);
 }
 
 async function loadData() {
+  // Update account UI immediately so banner is visible without delay
+  updateAccountUI();
+
   // If supabaseClient is configured and logged in, load from cloud
   if (supabaseConnected && supabaseClient && userSession && userSession.user) {
     try {
@@ -782,6 +803,14 @@ async function loadData() {
   } else {
     loadLocalDataFallback();
   }
+
+  // Defensive fallback: guarantee every round has an attached course object
+  const defaultFallbackCourse = DEFAULT_COURSES.find(c => c.id === 'c-silabrador') || DEFAULT_COURSES[0];
+  rounds.forEach(r => {
+    if (!r.course || !r.course.holesPar) {
+      r.course = courses.find(c => c.id === r.courseId) || DEFAULT_COURSES.find(c => c.id === r.courseId) || defaultFallbackCourse;
+    }
+  });
 
   // 1. Ensure Costa & San Isidro Labrador rounds are injected & durations sanitized BEFORE rendering
   ensureCostaRoundsInjected();
@@ -1696,11 +1725,12 @@ function updateDashboard() {
     const frontPlayed = front.filter(s => s > 0).length === 9;
     const backPlayed = back.filter(s => s > 0).length === 9;
     
-    const courseNameShort = r.course.name.split(' - ')[0];
+    const courseNameShort = (r.course && r.course.name ? r.course.name : 'Cancha').split(' - ')[0];
+    const holesPar = (r.course && r.course.holesPar) ? r.course.holesPar : Array(18).fill(4);
 
     if (frontPlayed) {
       const sum = front.reduce((a, b) => a + b, 0);
-      const par = r.course.holesPar.slice(0, 9).reduce((a, b) => a + b, 0);
+      const par = holesPar.slice(0, 9).reduce((a, b) => a + b, 0);
       if (sum < best9) {
         best9 = sum;
         best9Course = courseNameShort + ' (Ida)';
@@ -1709,7 +1739,7 @@ function updateDashboard() {
     }
     if (backPlayed) {
       const sum = back.reduce((a, b) => a + b, 0);
-      const par = r.course.holesPar.slice(9, 18).reduce((a, b) => a + b, 0);
+      const par = holesPar.slice(9, 18).reduce((a, b) => a + b, 0);
       if (sum < best9) {
         best9 = sum;
         best9Course = courseNameShort + ' (Vta)';
@@ -1902,7 +1932,8 @@ function renderHistoryTable() {
 
     round.strokes.forEach((stroke, idx) => {
       if (stroke > 0) {
-        const parVal = round.course.holesPar[idx];
+        const holesParArr = (round.course && round.course.holesPar) ? round.course.holesPar : Array(18).fill(4);
+        const parVal = holesParArr[idx];
         const diff = stroke - parVal;
         if (diff <= -1) birdies++;
         else if (diff === 0) pars++;
@@ -1918,7 +1949,7 @@ function renderHistoryTable() {
     if (doubles > 0) pillsHtml += '<span class="score-pill pill-double" title="' + doubles + ' Dobles o peor">' + doubles + '</span>';
     pillsHtml += '</div>';
 
-    const playedPar = round.playedPar || round.course.par;
+    const playedPar = round.playedPar || (round.course ? round.course.par : 72);
     const diff = round.totalStrokes - playedPar;
     let relativeScore = diff === 0 ? 'E' : (diff > 0 ? ('+' + diff) : diff);
     let relativeColor = 'text-amber';
