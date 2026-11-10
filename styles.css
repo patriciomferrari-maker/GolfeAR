@@ -3706,3 +3706,28 @@ body.live-round-active #live-tracker-view .card-body {
   color: #34d399;
   font-family: monospace;
 }
+
+.live-nav-finish-quick {
+  background: rgba(16, 185, 129, 0.18);
+  border: 1.5px solid rgba(16, 185, 129, 0.45);
+  color: #34d399;
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  flex: 0 0 auto;
+  border-radius: 0.65rem;
+  transition: all 0.18s ease;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.live-nav-finish-quick:hover,
+.live-nav-finish-quick:active {
+  background: rgba(16, 185, 129, 0.35);
+  border-color: #34d399;
+  color: #ffffff;
+  transform: scale(0.97);
+}

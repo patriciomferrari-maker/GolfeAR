@@ -1084,38 +1084,25 @@ function setupEventListeners() {
     });
   }
 
-  // Live round options menu (⋯)
-  const btnMoreOptions = document.getElementById('btn-live-more-options');
-  const liveDropdown = document.getElementById('live-more-dropdown');
-  if (btnMoreOptions && liveDropdown) {
-    btnMoreOptions.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const isVisible = liveDropdown.style.display === 'flex' || liveDropdown.style.display === 'block';
-      liveDropdown.style.display = isVisible ? 'none' : 'flex';
-    });
+  // Live round finish & cancel event listeners (Top header, Bottom bar & Card body)
+  const finishButtons = [
+    document.getElementById('btn-top-finish-round'),
+    document.getElementById('btn-card-finish-round'),
+    document.getElementById('btn-live-bottom-finish'),
+    document.getElementById('btn-finish-live-round')
+  ];
+  finishButtons.forEach(btn => {
+    if (btn) btn.addEventListener('click', finishLiveRound);
+  });
 
-    document.addEventListener('click', (e) => {
-      if (!btnMoreOptions.contains(e.target) && !liveDropdown.contains(e.target)) {
-        liveDropdown.style.display = 'none';
-      }
-    });
-
-    const btnMenuFinish = document.getElementById('btn-menu-finish-round');
-    if (btnMenuFinish) {
-      btnMenuFinish.addEventListener('click', () => {
-        liveDropdown.style.display = 'none';
-        finishLiveRound();
-      });
-    }
-
-    const btnMenuCancel = document.getElementById('btn-menu-cancel-round');
-    if (btnMenuCancel) {
-      btnMenuCancel.addEventListener('click', () => {
-        liveDropdown.style.display = 'none';
-        cancelLiveRound();
-      });
-    }
-  }
+  const cancelButtons = [
+    document.getElementById('btn-top-cancel-round'),
+    document.getElementById('btn-card-cancel-round'),
+    document.getElementById('btn-cancel-live-round')
+  ];
+  cancelButtons.forEach(btn => {
+    if (btn) btn.addEventListener('click', cancelLiveRound);
+  });
 
   // Form submits
   document.getElementById('form-register-round').addEventListener('submit', handleRegisterRoundSubmit);
