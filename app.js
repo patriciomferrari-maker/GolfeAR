@@ -783,31 +783,30 @@ async function loadData() {
     loadLocalDataFallback();
   }
 
+  // 1. Ensure Costa & San Isidro Labrador rounds are injected & durations sanitized BEFORE rendering
+  ensureCostaRoundsInjected();
+  sanitizeRoundDurations();
+
+  // 2. Render all main views with complete round data
   updateDashboard();
   renderHistoryTable();
   renderCharts();
   populateCourseDropdown();
   populateLiveCourseDropdown();
-  
-  // Sanitize round durations & synthesize missing hole times
-  sanitizeRoundDurations();
 
-  // Populate analysis course selection & refresh analysis charts
+  // 3. Update Account UI status card
+  updateAccountUI();
+
+  // 4. Populate analysis & time evolution
   populateAnalysisCourseDropdown();
   renderHoleAnalysisCharts();
   renderTimeEvolutionChart();
 
-  // Populate Duelos companions
+  // 5. Populate Duelos companions
   populateDuelosCompanions();
 
-  // Check for active cloud lobbies to recover if logged in
+  // 6. Check active cloud lobbies
   checkActiveCloudLobby();
-
-  // Ensure Costa Esmeralda 13/09 round is injected
-  ensureCostaRoundsInjected();
-  sanitizeRoundDurations();
-
-  // Reconcile with finished cloud lobbies
   reconcileFinishedLobbiesWithRounds();
 }
 
@@ -4228,35 +4227,91 @@ async function checkUserSession() {
 
 function handleAuthStateChange(session) {
   userSession = session;
-  const authBtn = document.getElementById('btn-auth-action');
-  const emailDisplay = document.getElementById('user-email-display');
+  updateAccountUI();
   
-  if (!authBtn || !emailDisplay) return;
-
   if (session && session.user) {
-    authBtn.textContent = 'Cerrar Sesión';
-    authBtn.classList.remove('btn-outline');
-    authBtn.classList.add('hover-red');
-    
-    emailDisplay.textContent = session.user.email;
-    emailDisplay.style.display = 'inline-block';
-
-    const bottomAuthLabel = document.getElementById('bottom-auth-label');
-    if (bottomAuthLabel) bottomAuthLabel.textContent = 'Perfil';
-    
     syncLocalDataToCloud();
-  } else {
-    authBtn.textContent = 'Iniciar Sesión';
-    authBtn.classList.add('btn-outline');
-    authBtn.classList.remove('hover-red');
-    
-    emailDisplay.style.display = 'none';
-
-    const bottomAuthLabel = document.getElementById('bottom-auth-label');
-    if (bottomAuthLabel) bottomAuthLabel.textContent = 'Cuenta';
   }
   
   loadData();
+}
+
+function updateAccountUI() {
+  const authBtn = document.getElementById('btn-auth-action');
+  const emailDisplay = document.getElementById('user-email-display');
+  const card = document.getElementById('account-status-card');
+
+  if (userSession && userSession.user) {
+    const userEmail = userSession.user.email || 'Usuario';
+
+    if (authBtn) {
+      authBtn.innerHTML = '<span>👤 Salir</span>';
+      authBtn.classList.remove('btn-outline');
+      authBtn.classList.add('hover-red');
+      authBtn.title = `Sesión iniciada como ${userEmail} (Tocar para cerrar sesión)`;
+    }
+    if (emailDisplay) {
+      emailDisplay.textContent = userEmail;
+      emailDisplay.style.display = 'inline-block';
+    }
+
+    if (card) {
+      card.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.15rem;">🟢</span>
+          <div>
+            <span style="font-size: 0.62rem; color: #34d399; text-transform: uppercase; font-weight: 800; display: block; letter-spacing: 0.03em;">Sesión Cloud Activa</span>
+            <strong style="font-size: 0.8rem; color: #ffffff;">${userEmail}</strong>
+          </div>
+        </div>
+        <button type="button" class="btn btn-xs btn-outline" id="btn-card-logout" style="border-color: rgba(239, 68, 68, 0.4); color: #f87171; font-weight: 700; padding: 0.35rem 0.75rem; border-radius: 0.35rem;">
+          Cerrar Sesión
+        </button>
+      `;
+      const btnLogout = document.getElementById('btn-card-logout');
+      if (btnLogout) {
+        btnLogout.addEventListener('click', async () => {
+          if (confirm('¿Deseas cerrar la sesión?')) {
+            await supabaseClient.auth.signOut();
+            alert('Sesión cerrada.');
+          }
+        });
+      }
+    }
+  } else {
+    if (authBtn) {
+      authBtn.innerHTML = '<span>🔐 Iniciar Sesión</span>';
+      authBtn.classList.add('btn-outline');
+      authBtn.classList.remove('hover-red');
+      authBtn.title = 'Iniciar sesión en GolfeAR';
+    }
+    if (emailDisplay) {
+      emailDisplay.style.display = 'none';
+    }
+
+    if (card) {
+      card.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.15rem;">☁️</span>
+          <div>
+            <span style="font-size: 0.62rem; color: #fbbf24; text-transform: uppercase; font-weight: 800; display: block; letter-spacing: 0.03em;">Modo Local (Sin Conectar)</span>
+            <span style="font-size: 0.72rem; color: var(--text-muted); display: block;">Iniciá sesión para ver tus salidas sincronizadas en la nube.</span>
+          </div>
+        </div>
+        <button type="button" class="btn btn-xs btn-primary" id="btn-card-login" style="font-weight: 700; padding: 0.38rem 0.85rem; border-radius: 0.35rem; background: linear-gradient(135deg, #2563eb, #1d4ed8);">
+          🔐 Iniciar Sesión
+        </button>
+      `;
+      const btnLogin = document.getElementById('btn-card-login');
+      if (btnLogin) {
+        btnLogin.addEventListener('click', () => {
+          const errMsgEl = document.getElementById('auth-error-msg');
+          if (errMsgEl) errMsgEl.style.display = 'none';
+          openModal('modal-auth');
+        });
+      }
+    }
+  }
 }
 
 async function syncLocalDataToCloud() {

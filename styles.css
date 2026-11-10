@@ -3075,7 +3075,22 @@ button, a, .btn, .nav-tab, .sub-tab-btn, .btn-live-ctrl,
     display: flex !important;
   }
   .header-actions {
-    display: none !important;
+    display: flex !important;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .user-email-display {
+    display: none !important; /* Hide long email text in mobile header to keep it one line */
+  }
+  #btn-auth-action {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.72rem !important;
+    padding: 0.32rem 0.6rem !important;
+    font-weight: 700 !important;
+    border-radius: 0.4rem !important;
+    line-height: 1.2 !important;
   }
   .btn-header-register {
     display: none !important;
@@ -3333,4 +3348,18 @@ body.live-round-active #live-tracker-view .card-body {
   display: flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+/* Account Status Banner Card in Dashboard */
+.account-status-card {
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid var(--border-color);
+  border-radius: 0.65rem;
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
