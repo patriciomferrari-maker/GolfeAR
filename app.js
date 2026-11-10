@@ -855,6 +855,49 @@ function updateLiveTrackerVisibility(isActive) {
   if (dropdown && !isActive) dropdown.style.display = 'none';
 }
 
+// Timer update function for Live Rounds
+function updateLiveTimer() {
+  const timerEl = document.getElementById('live-track-timer');
+  if (!timerEl || !liveRoundStartTime) return;
+  
+  const elapsedMs = Date.now() - liveRoundStartTime;
+  const hours = Math.floor(elapsedMs / 3600000);
+  const minutes = Math.floor((elapsedMs % 3600000) / 60000);
+  const seconds = Math.floor((elapsedMs % 60000) / 1000);
+  
+  let formatted = '';
+  if (hours > 0) {
+    formatted = String(hours).padStart(2, '0') + ':' + 
+                String(minutes).padStart(2, '0') + ':' + 
+                String(seconds).padStart(2, '0');
+  } else {
+    formatted = String(minutes).padStart(2, '0') + ':' + 
+                String(seconds).padStart(2, '0');
+  }
+  timerEl.textContent = formatted;
+}
+
+// Helper: Delete round handler
+window.promptDeleteRound = async function(roundId) {
+  if (confirm('¿Estás seguro de que deseas eliminar esta ronda? Esta acción es irreversible.')) {
+    try {
+      if (supabaseConnected && supabaseClient && userSession && userSession.user) {
+        const { error } = await supabaseClient
+          .from('golf_rounds')
+          .delete()
+          .eq('id', roundId);
+        if (error) throw error;
+      } else {
+        rounds = rounds.filter(r => r.id !== roundId);
+        saveData('golf_tracker_rounds', rounds);
+      }
+      await loadData();
+    } catch (err) {
+      alert('Error al eliminar ronda: ' + err.message);
+    }
+  }
+};
+
 // Function to start a live round (single player / local / multiplayer fallback)
 function startLiveRound() {
   const courseId = document.getElementById('live-course-select').value;
@@ -3672,7 +3715,7 @@ function renderLiveHolesTopStrip() {
   // Center the active hole in the horizontal strip
   requestAnimationFrame(() => {
     const activeBtn = strip.querySelector('.btn-live-strip-hole.current');
-    if (activeBtn) {
+    if (activeBtn && typeof activeBtn.scrollIntoView === 'function') {
       activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     }
   });
