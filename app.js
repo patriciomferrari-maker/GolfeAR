@@ -850,6 +850,7 @@ function saveData(key, data) {
 // Toggle full-screen live game mode (hides header & bottom tabs, shows live fixed bar)
 function updateLiveTrackerVisibility(isActive) {
   document.body.classList.toggle('live-round-active', !!isActive);
+  document.documentElement.classList.toggle('live-round-active', !!isActive);
   const liveBar = document.getElementById('live-bottom-bar');
   if (liveBar) liveBar.style.display = isActive ? 'flex' : 'none';
   const dropdown = document.getElementById('live-more-dropdown');
@@ -3646,12 +3647,12 @@ function renderLiveHole() {
 
   let distBadgeHTML = '';
   if (distYd) {
-    distBadgeHTML = '<span class="live-meta-badge live-dist-badge" onclick="cycleLiveTee()" title="Tocar para alternar Blancas / Azules / Rojas">' +
+    distBadgeHTML = '<span class="live-meta-badge live-dist-badge">' +
       '<span class="tee-dot-inline" style="background-color: ' + teeColorDot + ';"></span>' +
       '<strong>' + distYd + ' yd</strong> (' + distM + 'm)' +
     '</span>';
   } else {
-    distBadgeHTML = '<span class="live-meta-badge live-tee-badge" onclick="cycleLiveTee()">' +
+    distBadgeHTML = '<span class="live-meta-badge live-tee-badge">' +
       '<span class="tee-dot-inline" style="background-color: ' + teeColorDot + ';"></span>' +
       teeName +
     '</span>';
@@ -7436,7 +7437,7 @@ function openGpsModal() {
 
 function checkGpsSignal() {
   if (!navigator.geolocation) {
-    setGpsStatus('error', 'GPS no soportado');
+    setGpsStatus('error', 'GPS no soportado en este dispositivo');
     return;
   }
   
@@ -7445,15 +7446,21 @@ function checkGpsSignal() {
     pos => {
       const acc = Math.round(pos.coords.accuracy);
       const accText = '±' + acc + 'm';
-      if (acc <= 5) setGpsStatus('ready', 'Señal Satelital Óptima', accText);
-      else if (acc <= 12) setGpsStatus('ready', 'Señal Satelital Buena', accText);
+      if (acc <= 8) setGpsStatus('ready', 'Señal Satelital Óptima', accText);
+      else if (acc <= 20) setGpsStatus('ready', 'Señal Satelital Buena', accText);
       else setGpsStatus('ready', 'Señal Satelital Regular', accText);
     },
     err => {
       console.warn('GPS signal check:', err);
-      setGpsStatus('error', 'Ubicación desactivada o sin permiso');
+      if (err.code === 1) {
+        setGpsStatus('error', 'Permiso de ubicación denegado');
+      } else if (err.code === 3) {
+        setGpsStatus('ready', 'Buscando satélites...', 'esperando señal');
+      } else {
+        setGpsStatus('error', 'Señal satelital no disponible');
+      }
     },
-    { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
   );
 }
 
@@ -7477,14 +7484,11 @@ function startGpsShotTracking(club = selectedGpsClub) {
   const startBtn = document.getElementById('btn-gps-start-shot');
   if (startBtn) {
     startBtn.disabled = true;
-    startBtn.innerHTML = '<span>📡 Calibrando satélites GPS...</span>';
+    startBtn.innerHTML = '<span>📡 Fijando salida GPS...</span>';
   }
   setGpsStatus('tracking', 'Sincronizando satélites GPS...', 'buscando señal');
 
   let bestPos = null;
-  let attempts = 0;
-  const maxAttempts = 4;
-  const startTime = Date.now();
   let locked = false;
 
   const lockPointA = (pos) => {
@@ -7525,11 +7529,26 @@ function startGpsShotTracking(club = selectedGpsClub) {
     if (typeof showPremiumToast === 'function') {
       showPremiumToast('📍 Salida fijada (±' + acc + 'm) con ' + activeGpsTracking.club + '. ¡Caminá a tu bola!');
     }
+    closeModal('modal-gps-tracker');
   };
+
+  // Immediate attempt using getCurrentPosition with cache fallback
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      bestPos = pos;
+      const acc = Math.round(pos.coords.accuracy);
+      if (acc <= 40) {
+        lockPointA(pos);
+      }
+    },
+    err => {
+      console.warn('GPS initial fast lock fallback:', err);
+    },
+    { enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 }
+  );
 
   gpsWarmupWatchId = navigator.geolocation.watchPosition(
     pos => {
-      attempts++;
       const acc = Math.round(pos.coords.accuracy);
       setGpsStatus('tracking', 'Sincronizando satélites...', '±' + acc + 'm');
 
@@ -7537,9 +7556,7 @@ function startGpsShotTracking(club = selectedGpsClub) {
         bestPos = pos;
       }
 
-      const elapsed = Date.now() - startTime;
-      // High precision locked when accuracy <= 7m or after 1.8s
-      if (acc <= 7 || (attempts >= maxAttempts && elapsed >= 1800) || elapsed >= 3000) {
+      if (acc <= 40 || bestPos) {
         lockPointA(bestPos || pos);
       }
     },
@@ -7548,7 +7565,11 @@ function startGpsShotTracking(club = selectedGpsClub) {
       if (bestPos) {
         lockPointA(bestPos);
       } else {
-        alert('No se pudo fijar la señal GPS. Habilitá la ubicación en tu navegador para continuar.');
+        if (err.code === 1) {
+          alert('Permiso de GPS denegado. Habilitá la ubicación en tu navegador para medir distancias.');
+        } else {
+          alert('Buscando satélites GPS. Asegurate de tener la ubicación activada en tu teléfono.');
+        }
         if (startBtn) {
           startBtn.disabled = false;
           startBtn.innerHTML = '<span>📍 Marcar Salida del Tiro</span>';
@@ -7556,14 +7577,14 @@ function startGpsShotTracking(club = selectedGpsClub) {
         setGpsStatus('error', 'Error de señal GPS');
       }
     },
-    { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
   );
 
   setTimeout(() => {
     if (!locked && bestPos) {
       lockPointA(bestPos);
     }
-  }, 3200);
+  }, 3500);
 }
 
 function startGpsWatch() {
@@ -7580,10 +7601,10 @@ function startGpsWatch() {
       const currentLon = pos.coords.longitude;
       const currentAcc = Math.round(pos.coords.accuracy);
 
-      // Discard noisy multipath fixes (> 12m)
-      if (currentAcc > 12) {
+      // Only discard wildly inaccurate fixes (> 55m)
+      if (currentAcc > 55) {
         activeGpsTracking.accuracy = currentAcc;
-        setGpsStatus('tracking', 'Filtrando ruido satelital...', '±' + currentAcc + 'm');
+        setGpsStatus('tracking', 'Buscando mejor señal...', '±' + currentAcc + 'm');
         updateGpsLiveDisplays();
         return;
       }
@@ -7595,16 +7616,11 @@ function startGpsWatch() {
         currentLon
       );
 
-      // Jitter deadzone & low-pass filtering:
+      // Deadzone smoothing
       let smoothedDist = rawDist;
       const currentBaseM = (activeGpsTracking.distanceM || 0) - (activeGpsTracking.manualOffsetM || 0);
-      if (currentBaseM > 0) {
-        const delta = Math.abs(rawDist - currentBaseM);
-        if (delta < 1.2) {
-          smoothedDist = currentBaseM;
-        } else {
-          smoothedDist = Math.round(currentBaseM * 0.2 + rawDist * 0.8);
-        }
+      if (currentBaseM > 0 && Math.abs(rawDist - currentBaseM) < 1.0) {
+        smoothedDist = currentBaseM;
       }
 
       const finalM = Math.max(0, smoothedDist + (activeGpsTracking.manualOffsetM || 0));
@@ -7615,9 +7631,9 @@ function startGpsWatch() {
       activeGpsTracking.distanceYd = Math.round(finalM * 1.09361);
       activeGpsTracking.accuracy = currentAcc;
 
-      if (currentAcc <= 4) {
-        setGpsStatus('tracking', 'Precisión Satelital Óptima', '±' + currentAcc + 'm');
-      } else if (currentAcc <= 8) {
+      if (currentAcc <= 6) {
+        setGpsStatus('tracking', 'Señal Satelital Óptima', '±' + currentAcc + 'm');
+      } else if (currentAcc <= 18) {
         setGpsStatus('tracking', 'Midiendo en vivo', '±' + currentAcc + 'm');
       } else {
         setGpsStatus('tracking', 'Midiendo (precisión estándar)', '±' + currentAcc + 'm');
@@ -7628,7 +7644,7 @@ function startGpsWatch() {
     err => {
       console.warn('GPS watch error:', err);
     },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 3000 }
   );
 }
 
