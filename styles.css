@@ -3153,8 +3153,8 @@ body.live-round-active .bottom-nav {
 }
 
 body.live-round-active .app-container {
-  padding-top: calc(0.2rem + env(safe-area-inset-top)) !important;
-  padding-bottom: calc(54px + env(safe-area-inset-bottom)) !important;
+  padding-top: calc(0.35rem + env(safe-area-inset-top)) !important;
+  padding-bottom: calc(56px + env(safe-area-inset-bottom)) !important;
 }
 
 body.live-round-active #live-tracker-view {
@@ -3166,7 +3166,7 @@ body.live-round-active #live-tracker-view {
 }
 
 body.live-round-active #live-tracker-view .card-body {
-  padding-bottom: 0.25rem !important;
+  padding-bottom: 0.35rem !important;
 }
 
 /* Fixed Bottom Navigation Bar for Live Round */
@@ -3772,29 +3772,32 @@ body.live-round-active #live-tracker-view .card-body {
 }
 
 /* ==========================================================
-   v118: Redesigned Live Hero Hole Card & Ergonomic UI
+   v119: Balanced "Punto Medio" Live Round UI (Rich, Ergonomic & Compact)
    ========================================================== */
 .live-tracker-header {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 0.4rem 0.65rem 0.35rem 0.65rem;
-  background: rgba(15, 23, 42, 0.6);
-  border-radius: 0.75rem;
+  padding: 0.55rem 0.85rem;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.85) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.95rem;
   width: 100%;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   box-sizing: border-box;
+  margin-bottom: 0.25rem;
 }
 
 .live-hero-card {
   width: 100%;
   max-width: 420px;
-  background: linear-gradient(145deg, rgba(15, 23, 42, 0.75) 0%, rgba(30, 41, 59, 0.85) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 1rem;
-  padding: 0.55rem 0.75rem;
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.45);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.85) 0%, rgba(30, 41, 59, 0.92) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1.15rem;
+  padding: 0.75rem 0.95rem;
+  box-shadow: 0 10px 25px -4px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.65rem;
   box-sizing: border-box;
   margin: 0 auto;
 }
@@ -3805,9 +3808,9 @@ body.live-round-active #live-tracker-view .card-body {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  padding-bottom: 0.35rem;
+  gap: 0.45rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  padding-bottom: 0.45rem;
 }
 
 .live-hero-title-box {
@@ -3817,18 +3820,18 @@ body.live-round-active #live-tracker-view .card-body {
 }
 
 .live-hero-badge-hole {
-  font-size: 1.05rem;
+  font-size: 1.15rem;
   font-weight: 900;
   color: #ffffff;
   letter-spacing: -0.01em;
 }
 
 .live-hero-badge-par {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 800;
-  background: rgba(255, 255, 255, 0.08);
-  color: #94a3b8;
-  padding: 0.15rem 0.45rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+  padding: 0.18rem 0.55rem;
   border-radius: 9999px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -3837,7 +3840,7 @@ body.live-round-active #live-tracker-view .card-body {
 .live-hero-meta {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.45rem;
   flex-wrap: wrap;
 }
 
@@ -3845,23 +3848,23 @@ body.live-round-active #live-tracker-view .card-body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
+  gap: 1.25rem;
   width: 100%;
-  padding: 0;
+  padding: 0.1rem 0;
 }
 
 .btn-live-hero-ctrl {
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 3.25rem;
+  height: 3.25rem;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  font-size: 1.85rem;
   font-weight: 300;
   cursor: pointer;
-  border: 1.5px solid rgba(255, 255, 255, 0.12);
-  background: rgba(15, 23, 42, 0.7);
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  background: rgba(15, 23, 42, 0.8);
   color: #ffffff;
   transition: all 0.15s ease;
   user-select: none;
@@ -3888,11 +3891,11 @@ body.live-round-active #live-tracker-view .card-body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-width: 75px;
+  min-width: 85px;
 }
 
 .live-hero-strokes-number {
-  font-size: 2.35rem;
+  font-size: 2.85rem;
   font-weight: 900;
   line-height: 1;
   color: #ffffff;
@@ -3902,15 +3905,15 @@ body.live-round-active #live-tracker-view .card-body {
 }
 
 .live-hero-score-tag {
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  margin-top: 0.15rem;
-  padding: 0.12rem 0.45rem;
+  margin-top: 0.22rem;
+  padding: 0.18rem 0.55rem;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.08);
+  color: #e2e8f0;
 }
 
 .live-hero-score-tag.tag-birdie {
@@ -3942,12 +3945,12 @@ body.live-round-active #live-tracker-view .card-body {
   border: 1px solid rgba(239, 68, 68, 0.35);
 }
 
-/* Secondary stats: Minimalist Putts & Multas with titles top, counter bottom */
+/* Secondary stats: Minimalist Putts & Multas micro-cards (Titles top, counter bottom) */
 .live-secondary-grid {
   width: 100%;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.45rem;
+  gap: 0.6rem;
   box-sizing: border-box;
 }
 
@@ -3956,16 +3959,17 @@ body.live-round-active #live-tracker-view .card-body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(15, 23, 42, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 0.65rem;
-  padding: 0.35rem 0.45rem;
-  gap: 0.2rem;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  padding: 0.45rem 0.6rem;
+  gap: 0.25rem;
   box-sizing: border-box;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .substat-title {
-  font-size: 0.62rem;
+  font-size: 0.65rem;
   font-weight: 800;
   color: #94a3b8;
   letter-spacing: 0.08em;
@@ -3977,18 +3981,18 @@ body.live-round-active #live-tracker-view .card-body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
 }
 
 .btn-substat-ctrl {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #cbd5e1;
-  font-size: 1.15rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+  font-size: 1.25rem;
   font-weight: 300;
-  width: 1.85rem;
-  height: 1.85rem;
-  border-radius: 0.4rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.45rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4000,15 +4004,15 @@ body.live-round-active #live-tracker-view .card-body {
 }
 
 .btn-substat-ctrl:active {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.2);
   color: #ffffff;
 }
 
 .substat-val {
-  font-size: 1.15rem;
-  font-weight: 800;
+  font-size: 1.25rem;
+  font-weight: 900;
   color: #ffffff;
-  min-width: 1.35rem;
+  min-width: 1.5rem;
   text-align: center;
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -4021,39 +4025,36 @@ body.live-round-active #live-tracker-view .card-body {
   display: flex;
   align-items: center;
   justify-content: space-around;
-  background: rgba(15, 23, 42, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 0.65rem;
-  padding: 0.32rem 0.65rem;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  padding: 0.45rem 0.85rem;
   box-sizing: border-box;
   margin: 0 auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .summary-pill-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.05rem;
+  gap: 0.08rem;
 }
 
 .pill-label {
-  font-size: 0.55rem;
+  font-size: 0.58rem;
   text-transform: uppercase;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  color: #94a3b8;
 }
 
 .pill-val {
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: #ffffff;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
+  font-size: 1.05rem;
   font-weight: 900;
   color: #ffffff;
   font-variant-numeric: tabular-nums;
+  line-height: 1.1;
 }
 
 .pill-val.score-diff {
@@ -4063,6 +4064,8 @@ body.live-round-active #live-tracker-view .card-body {
 .summary-pill-divider {
   width: 1px;
   height: 20px;
+  background: rgba(255, 255, 255, 0.08);
+}
   background: rgba(255, 255, 255, 0.08);
 }
 
