@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- CSS Stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=117">
+  <link rel="stylesheet" href="styles.css?v=118">
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Supabase JS Client CDN -->
@@ -236,7 +236,7 @@
       </div>
     </div> <!-- End tab-pane-analysis -->
 
-    <div id="tab-pane-live" class="tab-pane" style="margin-top: 0.5rem;">
+    <div id="tab-pane-live" class="tab-pane" style="margin-top: 0;">
       <div id="live-setup-view" class="card max-w-md mx-auto" style="margin: 0 auto; max-width: 480px;">
         <div class="card-header" style="text-align: center; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
           <h2>⛳ Iniciar Salida</h2>
@@ -309,41 +309,41 @@
         </div></div>
 
       <div id="live-tracker-view" class="card max-w-md mx-auto" style="display: none; margin: 0 auto; max-width: 480px;">
-        <div class="card-header" style="border-bottom: 1px solid var(--border-color); padding: 1rem 1.25rem 0.85rem 1.25rem;">
-          <!-- Titulo con menú de opciones ⋯ -->
-          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 0.65rem;">
-            <h2 id="live-track-course-name" style="font-size: 1.15rem; font-weight: 800; color: #ffffff; margin: 0; letter-spacing: -0.01em; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Cancha Activa</h2>
-            <div style="display: flex; align-items: center; gap: 0.45rem; flex-shrink: 0; margin-left: 0.5rem;">
-              <button type="button" id="btn-top-cancel-round" class="btn btn-xs btn-outline" style="color: #f87171; border-color: rgba(239, 68, 68, 0.4); font-weight: 700; padding: 0.32rem 0.65rem; border-radius: 0.4rem; font-size: 0.72rem;" title="Cancelar partida actual">
+        <div class="card-header live-tracker-header">
+          <!-- Top Row: Course Name & Actions -->
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 0.35rem;">
+            <h2 id="live-track-course-name" style="font-size: 0.95rem; font-weight: 800; color: #ffffff; margin: 0; letter-spacing: -0.01em; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Cancha Activa</h2>
+            <div style="display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; margin-left: 0.5rem;">
+              <button type="button" id="btn-top-cancel-round" class="btn btn-xs btn-outline" style="color: #f87171; border-color: rgba(239, 68, 68, 0.4); font-weight: 700; padding: 0.25rem 0.55rem; border-radius: 0.35rem; font-size: 0.68rem;" title="Cancelar partida actual">
                 ✕ Cancelar
               </button>
-              <button type="button" id="btn-top-finish-round" class="btn btn-xs btn-primary" style="background: linear-gradient(135deg, #059669, #10b981); font-weight: 800; padding: 0.32rem 0.75rem; border-radius: 0.4rem; font-size: 0.72rem;" title="Terminar y guardar partida">
+              <button type="button" id="btn-top-finish-round" class="btn btn-xs btn-primary" style="background: linear-gradient(135deg, #059669, #10b981); font-weight: 800; padding: 0.25rem 0.65rem; border-radius: 0.35rem; font-size: 0.68rem;" title="Terminar y guardar partida">
                 ✓ Terminar
               </button>
             </div>
           </div>
           
-          <!-- Fila de Tarjetas (Tiempo, Codigo, Invitar, Score) -->
-          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 0.5rem;">
-            <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+          <!-- Second Row: Timer, Invitar, Score Difference -->
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <div style="display: flex; align-items: center; gap: 0.4rem;">
               <!-- Tarjeta de Tiempo -->
-              <div class="live-header-pill live-timer-pill" id="live-track-timer-container">
-                <span style="font-size: 0.75rem;">⏱️</span>
-                <span id="live-track-timer" style="color: #60a5fa; font-family: monospace; font-size: 0.82rem; font-weight: 700;">00:00</span>
+              <div class="live-header-pill live-timer-pill" id="live-track-timer-container" style="padding: 0.2rem 0.5rem;">
+                <span style="font-size: 0.72rem;">⏱️</span>
+                <span id="live-track-timer" style="color: #60a5fa; font-family: monospace; font-size: 0.78rem; font-weight: 700;">00:00</span>
               </div>
-              <!-- Codigo de Partida -->
-              <span id="live-lobby-code-badge" class="live-header-pill live-code-pill" style="display: none;" title="Copiar invitación">CÓDIGO: -</span>
+              <!-- Codigo de Partida (Hidden per user request: "quita el codigo, directamente que quede lo de invitar") -->
+              <span id="live-lobby-code-badge" style="display: none;"></span>
               <!-- Boton Invitar -->
-              <button type="button" id="btn-live-share-lobby" class="btn live-header-pill live-invite-pill" style="display: none;">👥 Invitar</button>
+              <button type="button" id="btn-live-share-lobby" class="btn live-header-pill live-invite-pill" style="display: none; padding: 0.2rem 0.55rem; font-size: 0.72rem; font-weight: 700;">👥 Invitar</button>
             </div>
             <!-- Marcador Diferencial -->
-            <div class="live-score-badge" id="live-score-relative-badge">E</div>
+            <div class="live-score-badge" id="live-score-relative-badge" style="font-size: 0.78rem; padding: 0.2rem 0.6rem;">E</div>
           </div>
         </div>
-        <div class="card-body" style="padding: 1.5rem 0 6rem 0; display: flex; flex-direction: column; gap: 1.25rem; align-items: center;">
+        <div class="card-body" style="padding: 0.35rem 0.25rem 0.25rem 0.25rem; display: flex; flex-direction: column; gap: 0.45rem; align-items: center;">
           
-          <!-- Multiplayer Player Tabs -->
-          <div id="live-multiplayer-tabs" style="display: none; flex-wrap: wrap; gap: 0.4rem; justify-content: center; width: 100%; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; padding-left: 1rem; padding-right: 1rem; margin-top: -0.5rem;">
+          <!-- Multiplayer Player Tabs (Hidden if playing solo) -->
+          <div id="live-multiplayer-tabs" style="display: none; flex-wrap: wrap; gap: 0.35rem; justify-content: center; width: 100%; border-bottom: 1px solid var(--border-color); padding-bottom: 0.35rem; padding-left: 0.5rem; padding-right: 0.5rem; margin-top: -0.25rem;">
             <!-- Populated dynamically -->
           </div>
 
@@ -424,18 +424,18 @@
               <button type="button" class="btn-live-hero-ctrl increase" id="btn-live-stroke-inc" aria-label="Sumar golpe">&plus;</button>
             </div>
 
-            <!-- Secondary Stats: Putts & Multas in 2-column isolated grid to prevent overlap -->
+            <!-- Secondary Stats: Putts & Multas in minimalist vertical cards (Title top, Stepper bottom) -->
             <div class="live-secondary-grid">
-              <div class="live-substat-box">
-                <span class="substat-label">⛳ Putts</span>
+              <div class="live-substat-card">
+                <span class="substat-title">PUTTS</span>
                 <div class="substat-stepper">
                   <button type="button" class="btn-substat-ctrl" id="btn-live-putt-dec" aria-label="Restar putts">&minus;</button>
                   <span class="substat-val" id="live-putt-val">2</span>
                   <button type="button" class="btn-substat-ctrl" id="btn-live-putt-inc" aria-label="Sumar putts">&plus;</button>
                 </div>
               </div>
-              <div class="live-substat-box">
-                <span class="substat-label">⚠️ Multas</span>
+              <div class="live-substat-card">
+                <span class="substat-title">MULTAS</span>
                 <div class="substat-stepper">
                   <button type="button" class="btn-substat-ctrl" id="btn-live-penalty-dec" aria-label="Restar multas">&minus;</button>
                   <span class="substat-val" id="live-penalty-val">0</span>
@@ -1022,7 +1022,7 @@
   </div>
 
   <!-- JavaScript Application -->
-  <script src="app.js?v=117"></script>
+  <script src="app.js?v=118"></script>
 
 
 

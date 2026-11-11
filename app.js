@@ -3552,14 +3552,14 @@ function renderLiveHole() {
   const shareBtn = document.getElementById('btn-live-share-lobby');
   const codeBadge = document.getElementById('live-lobby-code-badge');
   if (activeLobbyId && lobbyState && lobbyState.players) {
-    if (tabsContainer) tabsContainer.style.display = 'flex';
-    if (shareBtn) shareBtn.style.display = 'inline-block';
+    // Only show player tabs if there are companions (> 1 player); hide user's own card when playing solo
+    if (tabsContainer) {
+      tabsContainer.style.display = (lobbyState.players.length > 1) ? 'flex' : 'none';
+    }
+    if (shareBtn) shareBtn.style.display = 'inline-flex';
+    // Remove lobby code badge per user request ("quita el codigo, directamente que quede lo de invitar")
     if (codeBadge) {
-      codeBadge.style.display = 'inline-block';
-      codeBadge.textContent = 'CÓDIGO: ' + activeLobbyId;
-      codeBadge.onclick = () => {
-        shareLobbyInvite();
-      };
+      codeBadge.style.display = 'none';
     }
     
     // Sync current selection
@@ -5207,8 +5207,16 @@ async function updateLobbyDatabase() {
 
 function renderLiveMultiplayerTabs() {
   const container = document.getElementById('live-multiplayer-tabs');
-  if (!container || !lobbyState || !lobbyState.players) return;
+  if (!container) return;
 
+  // Solo check: do not render tabs if 1 or fewer players
+  if (!lobbyState || !lobbyState.players || lobbyState.players.length <= 1) {
+    container.innerHTML = '';
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'flex';
   container.innerHTML = '';
 
   lobbyState.players.forEach((player, idx) => {
@@ -5252,11 +5260,21 @@ function renderLiveMultiplayerTabs() {
 function shareLobbyInvite() {
   if (!activeLobbyId) return;
   const inviteUrl = window.location.origin + window.location.pathname + '?lobby=' + activeLobbyId;
-  navigator.clipboard.writeText(inviteUrl).then(() => {
-    alert('¡Link de invitación copiado al portapapeles! Envíaselo a tu amigo para que juegue con vos.');
-  }).catch(() => {
-    prompt('Copiá este link y envíaselo a tu amigo para jugar:', inviteUrl);
-  });
+  if (navigator.share) {
+    navigator.share({
+      title: 'Partida en GolfeAR',
+      text: `Sumate a mi partida de golf en ${liveCourse ? liveCourse.name : 'GolfeAR'}:`,
+      url: inviteUrl
+    }).catch(() => {});
+  } else if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(inviteUrl).then(() => {
+      alert('¡Link de invitación copiado! Envíaselo a tu compañero para que juegue con vos.');
+    }).catch(() => {
+      prompt('Copiá este link y envíaselo a tu compañero para jugar:', inviteUrl);
+    });
+  } else {
+    prompt('Copiá este link y envíaselo a tu compañero para jugar:', inviteUrl);
+  }
 }
 
 async function saveLobbyRoundLocally() {
