@@ -33,6 +33,7 @@ let liveCourse = null;
 let liveMode = 'front'; // 'front', 'back', or 'full'
 let liveHolesList = [];
 let liveCurrentIndex = 0;
+let live18ActiveNine = 'front'; // 'front' or 'back' for 18-hole strip view
 let liveStrokes = Array(18).fill(0);
 let livePutts = Array(18).fill(2);
 let livePenalties = Array(18).fill(0);
@@ -1257,6 +1258,22 @@ function setupEventListeners() {
         code = 'G-' + code;
       }
       joinMultiplayerLobby(code);
+    });
+  }
+
+  // Live 18-Holes Nine Toggle Tabs
+  const btnLiveNineFront = document.getElementById('btn-live-nine-front');
+  if (btnLiveNineFront) {
+    btnLiveNineFront.addEventListener('click', () => {
+      live18ActiveNine = 'front';
+      renderLiveHolesTopStrip();
+    });
+  }
+  const btnLiveNineBack = document.getElementById('btn-live-nine-back');
+  if (btnLiveNineBack) {
+    btnLiveNineBack.addEventListener('click', () => {
+      live18ActiveNine = 'back';
+      renderLiveHolesTopStrip();
     });
   }
 
@@ -3513,6 +3530,10 @@ function renderCardComparisonTable(round, companion) {
 function renderLiveHole() {
   if (!liveCourse || !liveRoundActive) return;
 
+  if (liveHolesList && liveHolesList.length === 18) {
+    live18ActiveNine = liveCurrentIndex >= 9 ? 'back' : 'front';
+  }
+
   const defCourse = DEFAULT_COURSES.find(dc => dc.id === liveCourse.id || (dc.name && liveCourse.name && dc.name.toLowerCase().includes(liveCourse.name.split(' (')[0].toLowerCase())));
   const currentCourse = (liveCourse.tees) ? liveCourse : (defCourse || liveCourse);
 
@@ -3692,7 +3713,28 @@ function renderLiveHolesTopStrip() {
   if (!strip || !liveHolesList) return;
   strip.innerHTML = '';
 
-  liveHolesList.forEach((idx, listIdx) => {
+  const switchBar = document.getElementById('live-18-switch-bar');
+  const btnFront = document.getElementById('btn-live-nine-front');
+  const btnBack = document.getElementById('btn-live-nine-back');
+
+  let itemsToRender = [];
+
+  if (liveHolesList.length === 18) {
+    if (switchBar) switchBar.style.display = 'flex';
+    if (btnFront) btnFront.classList.toggle('active', live18ActiveNine === 'front');
+    if (btnBack) btnBack.classList.toggle('active', live18ActiveNine === 'back');
+
+    if (live18ActiveNine === 'front') {
+      itemsToRender = liveHolesList.slice(0, 9).map((idx, listIdx) => ({ idx, listIdx }));
+    } else {
+      itemsToRender = liveHolesList.slice(9, 18).map((idx, listIdx) => ({ idx, listIdx: listIdx + 9 }));
+    }
+  } else {
+    if (switchBar) switchBar.style.display = 'none';
+    itemsToRender = liveHolesList.map((idx, listIdx) => ({ idx, listIdx }));
+  }
+
+  itemsToRender.forEach(({ idx, listIdx }) => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'btn-live-strip-hole';
@@ -3727,19 +3769,14 @@ function renderLiveHolesTopStrip() {
       liveHoleStartTime = Date.now();
 
       liveCurrentIndex = listIdx;
+      if (liveHolesList.length === 18) {
+        live18ActiveNine = liveCurrentIndex >= 9 ? 'back' : 'front';
+      }
       renderLiveHole();
       saveLiveRoundState();
     });
 
     strip.appendChild(btn);
-  });
-
-  // Center the active hole in the horizontal strip
-  requestAnimationFrame(() => {
-    const activeBtn = strip.querySelector('.btn-live-strip-hole.current');
-    if (activeBtn && typeof activeBtn.scrollIntoView === 'function') {
-      activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    }
   });
 }
 

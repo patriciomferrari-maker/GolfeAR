@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- CSS Stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=116">
+  <link rel="stylesheet" href="styles.css?v=117">
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Supabase JS Client CDN -->
@@ -347,8 +347,13 @@
             <!-- Populated dynamically -->
           </div>
 
-          <!-- Quick Horizontal Hole Selector Strip (Always visible, scrollable 9 & 18 holes) -->
+          <!-- Quick Horizontal Hole Selector Strip (Always visible, fits 9 holes across screen) -->
           <div class="live-holes-strip-container" id="live-holes-strip-container">
+            <!-- 18-Holes Nine Toggle Bar (Visible only when playing 18 holes) -->
+            <div id="live-18-switch-bar" class="live-18-switch-bar" style="display: none;">
+              <button type="button" class="btn-live-nine-tab active" id="btn-live-nine-front">Hoyos 1 - 9 (Ida)</button>
+              <button type="button" class="btn-live-nine-tab" id="btn-live-nine-back">Hoyos 10 - 18 (Vuelta)</button>
+            </div>
             <div class="live-holes-strip" id="live-holes-top-strip"></div>
           </div>
           
@@ -419,23 +424,22 @@
               <button type="button" class="btn-live-hero-ctrl increase" id="btn-live-stroke-inc" aria-label="Sumar golpe">&plus;</button>
             </div>
 
-            <!-- Secondary Stats: Putts & Multas in single clean line -->
-            <div class="live-secondary-row">
-              <div class="live-mini-ctrl-group">
-                <span class="mini-ctrl-label">⛳ Putts</span>
-                <div class="mini-stepper">
-                  <button type="button" class="btn-mini-ctrl" id="btn-live-putt-dec" aria-label="Restar putts">&minus;</button>
-                  <span class="mini-val" id="live-putt-val">2</span>
-                  <button type="button" class="btn-mini-ctrl" id="btn-live-putt-inc" aria-label="Sumar putts">&plus;</button>
+            <!-- Secondary Stats: Putts & Multas in 2-column isolated grid to prevent overlap -->
+            <div class="live-secondary-grid">
+              <div class="live-substat-box">
+                <span class="substat-label">⛳ Putts</span>
+                <div class="substat-stepper">
+                  <button type="button" class="btn-substat-ctrl" id="btn-live-putt-dec" aria-label="Restar putts">&minus;</button>
+                  <span class="substat-val" id="live-putt-val">2</span>
+                  <button type="button" class="btn-substat-ctrl" id="btn-live-putt-inc" aria-label="Sumar putts">&plus;</button>
                 </div>
               </div>
-              <div class="mini-ctrl-divider"></div>
-              <div class="live-mini-ctrl-group">
-                <span class="mini-ctrl-label">⚠️ Multas</span>
-                <div class="mini-stepper">
-                  <button type="button" class="btn-mini-ctrl" id="btn-live-penalty-dec" aria-label="Restar multas">&minus;</button>
-                  <span class="mini-val" id="live-penalty-val">0</span>
-                  <button type="button" class="btn-mini-ctrl" id="btn-live-penalty-inc" aria-label="Sumar multas">&plus;</button>
+              <div class="live-substat-box">
+                <span class="substat-label">⚠️ Multas</span>
+                <div class="substat-stepper">
+                  <button type="button" class="btn-substat-ctrl" id="btn-live-penalty-dec" aria-label="Restar multas">&minus;</button>
+                  <span class="substat-val" id="live-penalty-val">0</span>
+                  <button type="button" class="btn-substat-ctrl" id="btn-live-penalty-inc" aria-label="Sumar multas">&plus;</button>
                 </div>
               </div>
             </div>
@@ -1018,7 +1022,7 @@
   </div>
 
   <!-- JavaScript Application -->
-  <script src="app.js?v=116"></script>
+  <script src="app.js?v=117"></script>
 
 
 
