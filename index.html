@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- CSS Stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=115">
+  <link rel="stylesheet" href="styles.css?v=116">
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Supabase JS Client CDN -->
@@ -352,10 +352,9 @@
             <div class="live-holes-strip" id="live-holes-top-strip"></div>
           </div>
           
-          <!-- 3-Circle Display (Hoyo, Par, Golpes) -->
           <!-- Hole Meta Strip (Tee Distance & Stroke Index) -->
-          <div id="live-hole-meta-strip" style="display: flex; gap: 0.5rem; align-items: center; justify-content: center; flex-wrap: wrap; margin-bottom: -0.25rem;">
-            <!-- Populated dynamically -->
+          <div id="live-hole-meta-strip" style="display: none;">
+            <!-- Populated dynamically and mirrored in Hero Card -->
           </div>
 
           <!-- Live GPS Shot Tracking Floating Banner -->
@@ -374,6 +373,14 @@
               </div>
               <span class="gps-hero-yd" id="gps-banner-yd">(0 yd)</span>
             </div>
+            <!-- Quick GPS Fine-Tuning in Banner -->
+            <div class="gps-adjust-bar" style="display: flex; align-items: center; justify-content: center; gap: 0.35rem; margin: 0.15rem 0;">
+              <span style="font-size: 0.62rem; color: #94a3b8; font-weight: 700; margin-right: 0.1rem;">Calibrar:</span>
+              <button type="button" class="btn-gps-adjust" onclick="adjustActiveGpsDistance(-5)" title="Restar 5m">-5m</button>
+              <button type="button" class="btn-gps-adjust" onclick="adjustActiveGpsDistance(-1)" title="Restar 1m">-1m</button>
+              <button type="button" class="btn-gps-adjust" onclick="adjustActiveGpsDistance(1)" title="Sumar 1m">+1m</button>
+              <button type="button" class="btn-gps-adjust" onclick="adjustActiveGpsDistance(5)" title="Sumar 5m">+5m</button>
+            </div>
             <div class="gps-banner-actions">
               <button type="button" class="btn btn-sm btn-primary btn-gps-finish" id="btn-gps-banner-finish">
                 <span>⏹️ Marcar Bola (Guardar)</span>
@@ -387,92 +394,80 @@
           <!-- Live Hole Measured Shots Badges -->
           <div id="live-hole-shots-container" class="live-hole-shots-container" style="display: none;"></div>
 
-          <div class="live-hole-display-container">
-            <!-- Circle 1: Hoyo -->
-            <div class="live-hole-circle" id="circle-hole">
-              <span class="circle-label">Hoyo</span>
-              <span class="circle-val" id="live-current-hole-num">1</span>
-            </div>
-            <!-- Circle 2: Par -->
-            <div class="live-hole-circle" id="circle-par">
-              <span class="circle-label">Par</span>
-              <span class="circle-val" id="live-current-hole-par-val">4</span>
-            </div>
-            <!-- Circle 3: Golpes -->
-            <div class="live-hole-circle" id="circle-strokes">
-              <span class="circle-label">Golpes</span>
-              <span class="circle-val" id="live-current-hole-strokes-val">0</span>
-            </div>
-          </div>
-
-          <!-- Resumen de Salida Activa (Total Strokes, Cumulative Par, Differential) -->
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; width: 100%; max-width: 380px; background-color: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 0.6rem; text-align: center; margin-top: -0.25rem; margin-bottom: 0.5rem;">
-            <div>
-              <span style="font-size: 0.55rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.03em; display: block; margin-bottom: 0.15rem;">Golpes Totales</span>
-              <strong id="live-summary-total-strokes" style="font-size: 1.1rem; color: #fff; font-weight: 800;">0</strong>
-            </div>
-            <div style="border-left: 1px solid var(--border-color); border-right: 1px solid var(--border-color);">
-              <span style="font-size: 0.55rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.03em; display: block; margin-bottom: 0.15rem;">Par Acumulado</span>
-              <strong id="live-summary-total-par" style="font-size: 1.1rem; color: #fff; font-weight: 800;">0</strong>
-            </div>
-            <div>
-              <span style="font-size: 0.55rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.03em; display: block; margin-bottom: 0.15rem;">Diferencial</span>
-              <strong id="live-summary-diff" style="font-size: 1.1rem; color: #fff; font-weight: 800;">E</strong>
-            </div>
-          </div>
-
-          <!-- Golpes Control (Top, Centered) -->
-          <div class="live-control-group" style="margin-bottom: 0.5rem;">
-            <span class="live-control-label">Golpes (Strokes)</span>
-            <div class="live-control-buttons">
-              <button type="button" class="btn-live-ctrl decrease" id="btn-live-stroke-dec">&minus;</button>
-              <span class="live-control-value" id="live-stroke-val">4</span>
-              <button type="button" class="btn-live-ctrl increase" id="btn-live-stroke-inc">&plus;</button>
-            </div>
-          </div>
-
-          <!-- Row for Putts and Penalties (Side-by-Side) -->
-          <div class="live-controls-row">
-            <!-- Putts Control (Left) -->
-            <div class="live-control-group">
-              <span class="live-control-label">Putts</span>
-              <div class="live-control-buttons compact">
-                <button type="button" class="btn-live-ctrl decrease compact" id="btn-live-putt-dec">&minus;</button>
-                <span class="live-control-value compact" id="live-putt-val">2</span>
-                <button type="button" class="btn-live-ctrl increase compact" id="btn-live-putt-inc">&plus;</button>
+          <!-- Redesigned Hero Hole Card: Consolidated, Modern & Clean -->
+          <div class="live-hero-card">
+            <!-- Hero Card Header: Hole Number, Par, Distance & GPS button -->
+            <div class="live-hero-header">
+              <div class="live-hero-title-box">
+                <span class="live-hero-badge-hole">Hoyo <span id="live-current-hole-num">1</span></span>
+                <span class="live-hero-badge-par">Par <span id="live-current-hole-par-val">4</span></span>
               </div>
-              <span class="help-text" style="font-size: 0.525rem; color: var(--text-muted); margin-top: 0.25rem; font-style: italic; opacity: 0.75; text-align: center; display: block;">*Informativos (no suman)</span>
+              <div id="live-hero-meta-container" class="live-hero-meta">
+                <!-- Distances and GPS trigger injected dynamically -->
+              </div>
             </div>
 
-            <!-- Tiros de Multa Control (Right) -->
-            <div class="live-control-group">
-              <span class="live-control-label">Multas</span>
-              <div class="live-control-buttons compact">
-                <button type="button" class="btn-live-ctrl decrease compact" id="btn-live-penalty-dec">&minus;</button>
-                <span class="live-control-value compact" id="live-penalty-val">0</span>
-                <button type="button" class="btn-live-ctrl increase compact" id="btn-live-penalty-inc">&plus;</button>
+            <!-- Hero Strokes Stepper: Big, tactile and ergonomic -->
+            <div class="live-hero-stroke-stepper">
+              <button type="button" class="btn-live-hero-ctrl decrease" id="btn-live-stroke-dec" aria-label="Restar golpe">&minus;</button>
+              <div class="live-hero-val-wrap">
+                <span class="live-hero-strokes-number" id="live-stroke-val">4</span>
+                <span class="live-hero-score-tag" id="live-current-hole-score-tag">Par (E)</span>
+                <!-- Backward compatibility hidden span -->
+                <span id="live-current-hole-strokes-val" style="display: none;">4</span>
+              </div>
+              <button type="button" class="btn-live-hero-ctrl increase" id="btn-live-stroke-inc" aria-label="Sumar golpe">&plus;</button>
+            </div>
+
+            <!-- Secondary Stats: Putts & Multas in single clean line -->
+            <div class="live-secondary-row">
+              <div class="live-mini-ctrl-group">
+                <span class="mini-ctrl-label">⛳ Putts</span>
+                <div class="mini-stepper">
+                  <button type="button" class="btn-mini-ctrl" id="btn-live-putt-dec" aria-label="Restar putts">&minus;</button>
+                  <span class="mini-val" id="live-putt-val">2</span>
+                  <button type="button" class="btn-mini-ctrl" id="btn-live-putt-inc" aria-label="Sumar putts">&plus;</button>
+                </div>
+              </div>
+              <div class="mini-ctrl-divider"></div>
+              <div class="live-mini-ctrl-group">
+                <span class="mini-ctrl-label">⚠️ Multas</span>
+                <div class="mini-stepper">
+                  <button type="button" class="btn-mini-ctrl" id="btn-live-penalty-dec" aria-label="Restar multas">&minus;</button>
+                  <span class="mini-val" id="live-penalty-val">0</span>
+                  <button type="button" class="btn-mini-ctrl" id="btn-live-penalty-inc" aria-label="Sumar multas">&plus;</button>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Hole Grid Quick Jumper -->
-          <div style="width: 100%; border-top: 1px dashed var(--border-color); padding-top: 1rem; margin-top: 0.5rem;">
-            <span class="form-label" style="display: block; margin-bottom: 0.5rem; font-size: 0.7rem; text-transform: uppercase;">Mapa de Hoyos</span>
-            <div class="live-holes-grid" id="live-holes-grid-jumper"></div>
+          <!-- Compact Live Round Running Totals Pill -->
+          <div class="live-round-summary-pill" id="live-round-summary-pill">
+            <div class="summary-pill-item">
+              <span class="pill-label">Golpes</span>
+              <strong class="pill-val" id="live-summary-total-strokes">0</strong>
+            </div>
+            <div class="summary-pill-divider"></div>
+            <div class="summary-pill-item">
+              <span class="pill-label">Par Acum.</span>
+              <strong class="pill-val" id="live-summary-total-par">0</strong>
+            </div>
+            <div class="summary-pill-divider"></div>
+            <div class="summary-pill-item">
+              <span class="pill-label">Score</span>
+              <strong class="pill-val score-diff" id="live-summary-diff">E</strong>
+            </div>
           </div>
 
-          <!-- Botones Prominentes para Terminar o Cancelar la Partida -->
-          <div style="width: 100%; max-width: 380px; border-top: 1px dashed var(--border-color); padding-top: 1.25rem; margin-top: 1rem; display: flex; flex-direction: column; gap: 0.65rem; align-items: center;">
-            <button type="button" class="btn btn-primary btn-block btn-lg" id="btn-card-finish-round" style="padding: 0.85rem; font-weight: 800; font-size: 0.95rem; background: linear-gradient(135deg, #059669, #10b981); border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.45rem; width: 100%;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-              <span>Terminar y Guardar Partida</span>
-            </button>
-            <button type="button" class="btn btn-outline btn-block" id="btn-card-cancel-round" style="padding: 0.65rem; font-weight: 700; font-size: 0.8rem; color: #f87171; border-color: rgba(239, 68, 68, 0.4); border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.35rem; width: 100%;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-              <span>Cancelar Partida</span>
-            </button>
-            <button type="button" id="btn-cancel-live-round" style="display:none;"></button>
-            <button type="button" id="btn-finish-live-round" style="display:none;"></button>
+          <!-- Hidden compatibility elements so existing script references don't break -->
+          <div style="display: none;">
+            <div class="live-hole-circle" id="circle-hole"></div>
+            <div class="live-hole-circle" id="circle-par"></div>
+            <div class="live-hole-circle" id="circle-strokes"></div>
+            <button type="button" id="btn-card-finish-round"></button>
+            <button type="button" id="btn-card-cancel-round"></button>
+            <button type="button" id="btn-cancel-live-round"></button>
+            <button type="button" id="btn-finish-live-round"></button>
           </div>
         </div>
       </div>
@@ -670,6 +665,13 @@
                   Auto-completar con Pars
                 </button>
               </div>
+            </div>
+
+            <!-- 18 Holes Segment Switcher (Ida / Vuelta / Todo) -->
+            <div class="reg-scorecard-tabs" id="reg-nine-toggle-bar" style="display: none;">
+              <button type="button" class="btn-reg-tab active" id="btn-reg-show-front" data-nine="front">Hoyos 1 - 9 (Ida)</button>
+              <button type="button" class="btn-reg-tab" id="btn-reg-show-back" data-nine="back">Hoyos 10 - 18 (Vuelta)</button>
+              <button type="button" class="btn-reg-tab" id="btn-reg-show-all" data-nine="all">Ver 18 Hoyos</button>
             </div>
 
             <!-- Scrollable container for holes grids (stacked and full width) -->
@@ -1016,7 +1018,7 @@
   </div>
 
   <!-- JavaScript Application -->
-  <script src="app.js?v=115"></script>
+  <script src="app.js?v=116"></script>
 
 
 
@@ -1044,6 +1046,15 @@
           </div>
           <span class="gps-modal-secondary" id="gps-modal-yd">0 yardas</span>
           <span class="gps-modal-club-badge" id="gps-modal-active-club-badge">Palo: Driver</span>
+
+          <!-- Manual GPS Fine-Tuning Row -->
+          <div class="gps-adjust-bar" id="gps-modal-adjust-bar" style="display: flex; align-items: center; justify-content: center; gap: 0.35rem; margin-top: 0.65rem; border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 0.5rem; width: 100%;">
+            <span style="font-size: 0.65rem; color: #94a3b8; font-weight: 700; margin-right: 0.15rem;">Calibrar:</span>
+            <button type="button" class="btn-gps-adjust" onclick="adjustActiveGpsDistance(-5)" title="Restar 5 metros">-5m</button>
+            <button type="button" class="btn-gps-adjust" onclick="adjustActiveGpsDistance(-1)" title="Restar 1 metro">-1m</button>
+            <button type="button" class="btn-gps-adjust" onclick="adjustActiveGpsDistance(1)" title="Sumar 1 metro">+1m</button>
+            <button type="button" class="btn-gps-adjust" onclick="adjustActiveGpsDistance(5)" title="Sumar 5 metros">+5m</button>
+          </div>
         </div>
 
         <!-- Club Selector Grid -->
@@ -1080,10 +1091,16 @@
           </button>
         </div>
 
-        <!-- Instructions / Explanatory Text -->
+        <!-- Instructions / Explanatory Text with Pro-Tip -->
         <p id="gps-instructions-text" class="text-muted" style="font-size: 0.72rem; line-height: 1.35; margin: 0;">
           Parate donde vas a ejecutar el tiro, elegí tu palo y tocá <strong>"Marcar Salida"</strong>. Luego caminá hacia donde cayó la bola para ver la distancia en tiempo real.
         </p>
+
+        <!-- Accuracy Pro-Tip -->
+        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 0.5rem; padding: 0.5rem 0.75rem; text-align: left; width: 100%;">
+          <span style="font-size: 0.68rem; color: #34d399; font-weight: 700; display: block; margin-bottom: 0.2rem;">💡 Tip para Máxima Precisión (±3m):</span>
+          <span style="font-size: 0.65rem; color: #94a3b8; line-height: 1.35; display: block;">Mantené el celular al cielo despejado (lejos del techo del carrito o árboles) un par de segundos para que el sensor GPS sincronice los satélites. Podés calibrar con los botones ±1m o ±5m según las estacas de la cancha.</span>
+        </div>
 
         <!-- List of recorded shots in this round -->
         <div id="gps-shots-history-container" style="width: 100%; border-top: 1px solid var(--border-color); padding-top: 0.75rem; text-align: left; display: none;">

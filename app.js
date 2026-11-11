@@ -1389,6 +1389,19 @@ function setupEventListeners() {
     });
   });
 
+  // 18 Holes Segment Selector Toggles in Register Modal
+  document.querySelectorAll('.btn-reg-tab').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.btn-reg-tab').forEach(b => b.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      const viewNine = e.currentTarget.getAttribute('data-nine');
+      const frontContainer = document.getElementById('front-nine-container');
+      const backContainer = document.getElementById('back-nine-container');
+      if (frontContainer) frontContainer.style.display = (viewNine === 'front' || viewNine === 'all') ? 'block' : 'none';
+      if (backContainer) backContainer.style.display = (viewNine === 'back' || viewNine === 'all') ? 'block' : 'none';
+    });
+  });
+
   // Custom pars grid quick template buttons
   document.querySelectorAll('[data-template]').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -1611,13 +1624,18 @@ function renderScorecardInputs(course) {
       }
     }
 
-    holeBox.innerHTML = '<span class="hole-name">Hoyo ' + holeNum + '</span>' +
-      '<span class="hole-par">Par ' + par + ' <span class="hole-rel ' + relClass + '" id="reg-rel-h' + i + '">' + relText + '</span></span>' +
+    holeBox.innerHTML = 
+      '<div class="hole-box-header">' +
+      '  <span class="hole-num-badge">H' + holeNum + '</span>' +
+      '  <span class="hole-par-badge">Par ' + par + '</span>' +
+      '</div>' +
       '<div class="hole-controls">' +
       '  <button type="button" class="hole-btn" onclick="adjustHoleStroke(' + i + ', -1)">&minus;</button>' +
-      '  <input type="text" class="hole-input" id="reg-strokes-h' + i + '" value="' + (strokes === 0 ? '-' : strokes) + '">' +
+      '  <input type="text" class="hole-input" id="reg-strokes-h' + i + '" value="' + (strokes === 0 ? '-' : strokes) + '" readonly>' +
       '  <button type="button" class="hole-btn" onclick="adjustHoleStroke(' + i + ', 1)">&plus;</button>' +
-      '</div>' + extraStatsHtml;
+      '</div>' +
+      (relText ? '<span class="hole-rel-pill ' + relClass + '" id="reg-rel-h' + i + '">' + relText + '</span>' : '<span class="hole-rel-pill" id="reg-rel-h' + i + '" style="display:none;"></span>') +
+      extraStatsHtml;
 
     if (i < 9) {
       frontGrid.appendChild(holeBox);
@@ -1626,9 +1644,22 @@ function renderScorecardInputs(course) {
     }
   }
 
-  // Toggle visibility of front/back scorecard containers based on mode
-  document.getElementById('front-nine-container').style.display = (activeRoundMode === 'front' || activeRoundMode === 'full') ? 'block' : 'none';
-  document.getElementById('back-nine-container').style.display = (activeRoundMode === 'back' || activeRoundMode === 'full') ? 'block' : 'none';
+  // Segment toggle and visibility handling
+  const toggleBar = document.getElementById('reg-nine-toggle-bar');
+  const frontContainer = document.getElementById('front-nine-container');
+  const backContainer = document.getElementById('back-nine-container');
+
+  if (activeRoundMode === 'full') {
+    if (toggleBar) toggleBar.style.display = 'flex';
+    const activeNineBtn = toggleBar ? toggleBar.querySelector('.btn-reg-tab.active') : null;
+    const viewNine = activeNineBtn ? activeNineBtn.getAttribute('data-nine') : 'front';
+    if (frontContainer) frontContainer.style.display = (viewNine === 'front' || viewNine === 'all') ? 'block' : 'none';
+    if (backContainer) backContainer.style.display = (viewNine === 'back' || viewNine === 'all') ? 'block' : 'none';
+  } else {
+    if (toggleBar) toggleBar.style.display = 'none';
+    if (frontContainer) frontContainer.style.display = (activeRoundMode === 'front') ? 'block' : 'none';
+    if (backContainer) backContainer.style.display = (activeRoundMode === 'back') ? 'block' : 'none';
+  }
 }
 
 // Adjust single hole putts
@@ -3586,39 +3617,43 @@ function renderLiveHole() {
   // Update Live Penalty display
   document.getElementById('live-penalty-val').textContent = livePenalties[idx] || 0;
 
-  // 1. Hole Meta Strip (Tee, Prominent Yards & Meters)
+  // 1. Hole Meta Strip: Injected into the Hero Card
+  const heroMeta = document.getElementById('live-hero-meta-container');
   const metaStrip = document.getElementById('live-hole-meta-strip');
-  if (metaStrip) {
-    const teeName = teeKey === 'blue' ? 'Azules' : (teeKey === 'red' ? 'Rojas' : 'Blancas');
-    const teeColorDot = teeKey === 'blue' ? '#38bdf8' : (teeKey === 'red' ? '#f43f5e' : '#ffffff');
+  const teeName = teeKey === 'blue' ? 'Azules' : (teeKey === 'red' ? 'Rojas' : 'Blancas');
+  const teeColorDot = teeKey === 'blue' ? '#38bdf8' : (teeKey === 'red' ? '#f43f5e' : '#ffffff');
 
-    let distBadgeHTML = '';
-    if (distYd) {
-      distBadgeHTML = '<span class="live-meta-badge live-dist-badge" onclick="cycleLiveTee()" title="Tocar para alternar Blancas / Azules / Rojas">' +
-        '<span class="tee-dot-inline" style="background-color: ' + teeColorDot + ';"></span>' +
-        '<strong>' + distYd + ' YARDAS</strong> (' + distM + 'm • ' + teeName + ')' +
-      '</span>';
-    } else {
-      distBadgeHTML = '<span class="live-meta-badge live-tee-badge" onclick="cycleLiveTee()">' +
-        '<span class="tee-dot-inline" style="background-color: ' + teeColorDot + ';"></span>' +
-        teeName +
-      '</span>';
-    }
-
-    const isTrackingActive = !!activeGpsTracking;
-    const gpsBtnHTML = '<button type="button" class="live-meta-badge live-gps-badge' + (isTrackingActive ? ' active-tracking' : '') + '" id="btn-open-live-gps" title="Medir distancia de tiro con GPS">' +
-      '<span>📍 Medir Golpe GPS</span>' +
-    '</button>';
-
-    metaStrip.innerHTML = distBadgeHTML + gpsBtnHTML;
-
-    const btnGps = document.getElementById('btn-open-live-gps');
-    if (btnGps) {
-      btnGps.onclick = () => {
-        openGpsModal();
-      };
-    }
+  let distBadgeHTML = '';
+  if (distYd) {
+    distBadgeHTML = '<span class="live-meta-badge live-dist-badge" onclick="cycleLiveTee()" title="Tocar para alternar Blancas / Azules / Rojas">' +
+      '<span class="tee-dot-inline" style="background-color: ' + teeColorDot + ';"></span>' +
+      '<strong>' + distYd + ' yd</strong> (' + distM + 'm)' +
+    '</span>';
+  } else {
+    distBadgeHTML = '<span class="live-meta-badge live-tee-badge" onclick="cycleLiveTee()">' +
+      '<span class="tee-dot-inline" style="background-color: ' + teeColorDot + ';"></span>' +
+      teeName +
+    '</span>';
   }
+
+  const isTrackingActive = !!activeGpsTracking;
+  const gpsBtnHTML = '<button type="button" class="live-meta-badge live-gps-badge' + (isTrackingActive ? ' active-tracking' : '') + '" id="btn-open-live-gps" title="Medir distancia de tiro con GPS">' +
+    '<span>📍 GPS</span>' +
+  '</button>';
+
+  const combinedMetaHTML = distBadgeHTML + gpsBtnHTML;
+  if (heroMeta) heroMeta.innerHTML = combinedMetaHTML;
+  if (metaStrip) metaStrip.innerHTML = combinedMetaHTML;
+
+  const btnGps = document.getElementById('btn-open-live-gps');
+  if (btnGps) {
+    btnGps.onclick = () => {
+      openGpsModal();
+    };
+  }
+
+  // Update Relative Score Tag on Hero Card
+  updateLiveScoreTag(idx, liveStrokes[idx], livePenalties[idx] || 0);
 
   // Render recorded shots on current hole and update active banner
   renderLiveHoleShots();
@@ -3752,8 +3787,38 @@ function updateLiveScoreSummary() {
   }
 }
 
+function updateLiveScoreTag(idx, strokeVal, penVal) {
+  const tagEl = document.getElementById('live-current-hole-score-tag');
+  if (!tagEl || !liveCourse || !liveCourse.holesPar) return;
+  const par = liveCourse.holesPar[idx] || 4;
+  tagEl.className = 'live-hero-score-tag';
+  if (strokeVal === 0) {
+    tagEl.textContent = 'Sin registrar';
+    return;
+  }
+  const total = strokeVal + (penVal || 0);
+  const diff = total - par;
+  if (diff <= -2) {
+    tagEl.textContent = '🦅 Eagle (' + diff + ')';
+    tagEl.classList.add('tag-eagle');
+  } else if (diff === -1) {
+    tagEl.textContent = '🐦 Birdie (-1)';
+    tagEl.classList.add('tag-birdie');
+  } else if (diff === 0) {
+    tagEl.textContent = '⚪ Par (E)';
+    tagEl.classList.add('tag-par');
+  } else if (diff === 1) {
+    tagEl.textContent = '🟡 Bogey (+1)';
+    tagEl.classList.add('tag-bogey');
+  } else {
+    tagEl.textContent = '🔴 +' + diff;
+    tagEl.classList.add('tag-double');
+  }
+}
+
 function renderLiveJumperGrid() {
   const container = document.getElementById('live-holes-grid-jumper');
+  if (!container) return;
   container.innerHTML = '';
 
   liveHolesList.forEach((idx, listIdx) => {
@@ -5001,9 +5066,10 @@ function updateCurrentHoleDisplay() {
   const elPen = document.getElementById('live-penalty-val');
   if (elPen) elPen.textContent = penVal;
 
-  // 2. Big circle value
+  // 2. Big circle value & relative tag
   const elCircle = document.getElementById('live-current-hole-strokes-val');
   if (elCircle) elCircle.textContent = totalHoleStrokes;
+  updateLiveScoreTag(idx, strokeVal, penVal);
 
   // 3. Totals summary
   updateLiveScoreSummary();
@@ -7345,6 +7411,8 @@ function setGpsStatus(type, text, detail = '') {
   if (accEl) accEl.textContent = detail ? '(' + detail + ')' : '';
 }
 
+let gpsWarmupWatchId = null;
+
 function startGpsShotTracking(club = selectedGpsClub) {
   if (!navigator.geolocation) {
     alert('Tu dispositivo o navegador no soporta GPS.');
@@ -7354,49 +7422,93 @@ function startGpsShotTracking(club = selectedGpsClub) {
   const startBtn = document.getElementById('btn-gps-start-shot');
   if (startBtn) {
     startBtn.disabled = true;
-    startBtn.innerHTML = '<span>📡 Fijando posición satelital...</span>';
+    startBtn.innerHTML = '<span>📡 Calibrando satélites GPS...</span>';
   }
+  setGpsStatus('tracking', 'Sincronizando satélites GPS...', 'buscando señal');
 
-  navigator.geolocation.getCurrentPosition(
+  let bestPos = null;
+  let attempts = 0;
+  const maxAttempts = 4;
+  const startTime = Date.now();
+  let locked = false;
+
+  const lockPointA = (pos) => {
+    if (locked) return;
+    locked = true;
+
+    if (gpsWarmupWatchId !== null) {
+      navigator.geolocation.clearWatch(gpsWarmupWatchId);
+      gpsWarmupWatchId = null;
+    }
+
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+    const acc = Math.round(pos.coords.accuracy);
+    const currentHoleNum = (liveRoundActive && liveHolesList) ? (liveHolesList[liveCurrentIndex] + 1) : 1;
+
+    activeGpsTracking = {
+      startLat: lat,
+      startLon: lon,
+      startTime: Date.now(),
+      club: club || selectedGpsClub,
+      holeIdx: liveCurrentIndex,
+      holeNum: currentHoleNum,
+      lastLat: lat,
+      lastLon: lon,
+      distanceM: 0,
+      distanceYd: 0,
+      accuracy: acc,
+      manualOffsetM: 0
+    };
+
+    if (navigator.vibrate) navigator.vibrate([40, 80, 40]);
+
+    startGpsWatch();
+    updateGpsModalUI();
+    updateGpsBannerUI();
+
+    if (typeof showPremiumToast === 'function') {
+      showPremiumToast('📍 Salida fijada (±' + acc + 'm) con ' + activeGpsTracking.club + '. ¡Caminá a tu bola!');
+    }
+  };
+
+  gpsWarmupWatchId = navigator.geolocation.watchPosition(
     pos => {
-      const lat = pos.coords.latitude;
-      const lon = pos.coords.longitude;
+      attempts++;
       const acc = Math.round(pos.coords.accuracy);
-      const currentHoleNum = (liveRoundActive && liveHolesList) ? (liveHolesList[liveCurrentIndex] + 1) : 1;
+      setGpsStatus('tracking', 'Sincronizando satélites...', '±' + acc + 'm');
 
-      activeGpsTracking = {
-        startLat: lat,
-        startLon: lon,
-        startTime: Date.now(),
-        club: club || selectedGpsClub,
-        holeIdx: liveCurrentIndex,
-        holeNum: currentHoleNum,
-        lastLat: lat,
-        lastLon: lon,
-        distanceM: 0,
-        distanceYd: 0,
-        accuracy: acc
-      };
+      if (!bestPos || acc < bestPos.coords.accuracy) {
+        bestPos = pos;
+      }
 
-      if (navigator.vibrate) navigator.vibrate([40, 80, 40]);
-
-      startGpsWatch();
-      updateGpsModalUI();
-      updateGpsBannerUI();
-
-      if (typeof showPremiumToast === 'function') {
-        showPremiumToast('📍 Salida marcada con ' + activeGpsTracking.club + '. ¡Caminá hacia tu bola!');
+      const elapsed = Date.now() - startTime;
+      // High precision locked when accuracy <= 7m or after 1.8s
+      if (acc <= 7 || (attempts >= maxAttempts && elapsed >= 1800) || elapsed >= 3000) {
+        lockPointA(bestPos || pos);
       }
     },
     err => {
-      alert('No se pudo fijar la señal GPS. Habilitá la ubicación en tu navegador para continuar.');
-      if (startBtn) {
-        startBtn.disabled = false;
-        startBtn.innerHTML = '<span>📍 Marcar Salida del Tiro</span>';
+      console.warn('GPS warmup error:', err);
+      if (bestPos) {
+        lockPointA(bestPos);
+      } else {
+        alert('No se pudo fijar la señal GPS. Habilitá la ubicación en tu navegador para continuar.');
+        if (startBtn) {
+          startBtn.disabled = false;
+          startBtn.innerHTML = '<span>📍 Marcar Salida del Tiro</span>';
+        }
+        setGpsStatus('error', 'Error de señal GPS');
       }
     },
-    { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
   );
+
+  setTimeout(() => {
+    if (!locked && bestPos) {
+      lockPointA(bestPos);
+    }
+  }, 3200);
 }
 
 function startGpsWatch() {
@@ -7413,18 +7525,48 @@ function startGpsWatch() {
       const currentLon = pos.coords.longitude;
       const currentAcc = Math.round(pos.coords.accuracy);
 
-      const dist = calculateHaversineDistance(
+      // Discard noisy multipath fixes (> 12m)
+      if (currentAcc > 12) {
+        activeGpsTracking.accuracy = currentAcc;
+        setGpsStatus('tracking', 'Filtrando ruido satelital...', '±' + currentAcc + 'm');
+        updateGpsLiveDisplays();
+        return;
+      }
+
+      const rawDist = calculateHaversineDistance(
         activeGpsTracking.startLat,
         activeGpsTracking.startLon,
         currentLat,
         currentLon
       );
 
+      // Jitter deadzone & low-pass filtering:
+      let smoothedDist = rawDist;
+      const currentBaseM = (activeGpsTracking.distanceM || 0) - (activeGpsTracking.manualOffsetM || 0);
+      if (currentBaseM > 0) {
+        const delta = Math.abs(rawDist - currentBaseM);
+        if (delta < 1.2) {
+          smoothedDist = currentBaseM;
+        } else {
+          smoothedDist = Math.round(currentBaseM * 0.2 + rawDist * 0.8);
+        }
+      }
+
+      const finalM = Math.max(0, smoothedDist + (activeGpsTracking.manualOffsetM || 0));
+
       activeGpsTracking.lastLat = currentLat;
       activeGpsTracking.lastLon = currentLon;
-      activeGpsTracking.distanceM = dist;
-      activeGpsTracking.distanceYd = Math.round(dist * 1.09361);
+      activeGpsTracking.distanceM = finalM;
+      activeGpsTracking.distanceYd = Math.round(finalM * 1.09361);
       activeGpsTracking.accuracy = currentAcc;
+
+      if (currentAcc <= 4) {
+        setGpsStatus('tracking', 'Precisión Satelital Óptima', '±' + currentAcc + 'm');
+      } else if (currentAcc <= 8) {
+        setGpsStatus('tracking', 'Midiendo en vivo', '±' + currentAcc + 'm');
+      } else {
+        setGpsStatus('tracking', 'Midiendo (precisión estándar)', '±' + currentAcc + 'm');
+      }
 
       updateGpsLiveDisplays();
     },
@@ -7435,7 +7577,29 @@ function startGpsWatch() {
   );
 }
 
+// Manual calibration adjustment (+ / - meters)
+window.adjustActiveGpsDistance = function(deltaM) {
+  if (!activeGpsTracking) {
+    if (typeof showPremiumToast === 'function') {
+      showPremiumToast('Iniciá la medición de tiro para poder calibrar.');
+    }
+    return;
+  }
+  activeGpsTracking.manualOffsetM = (activeGpsTracking.manualOffsetM || 0) + deltaM;
+  activeGpsTracking.distanceM = Math.max(0, (activeGpsTracking.distanceM || 0) + deltaM);
+  activeGpsTracking.distanceYd = Math.round(activeGpsTracking.distanceM * 1.09361);
+  updateGpsLiveDisplays();
+  if (navigator.vibrate) navigator.vibrate(25);
+  if (typeof showPremiumToast === 'function') {
+    showPremiumToast('📏 Distancia ajustada: ' + activeGpsTracking.distanceM + 'm (' + activeGpsTracking.distanceYd + ' yd)');
+  }
+};
+
 function finishGpsShotTracking() {
+  if (gpsWarmupWatchId !== null) {
+    navigator.geolocation.clearWatch(gpsWarmupWatchId);
+    gpsWarmupWatchId = null;
+  }
   if (!activeGpsTracking) return;
 
   if (gpsWatchId !== null) {
@@ -7475,6 +7639,10 @@ function finishGpsShotTracking() {
 }
 
 function cancelGpsShotTracking() {
+  if (gpsWarmupWatchId !== null) {
+    navigator.geolocation.clearWatch(gpsWarmupWatchId);
+    gpsWarmupWatchId = null;
+  }
   if (gpsWatchId !== null) {
     navigator.geolocation.clearWatch(gpsWatchId);
     gpsWatchId = null;
@@ -7494,12 +7662,16 @@ function updateGpsLiveDisplays() {
   const yd = activeGpsTracking.distanceYd || 0;
   const acc = activeGpsTracking.accuracy || 3;
 
+  let accPill = '🟢 ±' + acc + 'm';
+  if (acc > 12) accPill = '🟠 ±' + acc + 'm';
+  else if (acc > 7) accPill = '🟡 ±' + acc + 'm';
+
   const bDist = document.getElementById('gps-banner-dist');
   const bYd = document.getElementById('gps-banner-yd');
   const bAcc = document.getElementById('gps-banner-accuracy');
   if (bDist) bDist.textContent = m;
   if (bYd) bYd.textContent = '(' + yd + ' yd)';
-  if (bAcc) bAcc.textContent = '🟢 ±' + acc + 'm';
+  if (bAcc) bAcc.textContent = accPill;
 
   const mDist = document.getElementById('gps-modal-dist');
   const mYd = document.getElementById('gps-modal-yd');
