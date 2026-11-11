@@ -4066,8 +4066,6 @@ body.live-round-active #live-tracker-view .card-body {
   height: 20px;
   background: rgba(255, 255, 255, 0.08);
 }
-  background: rgba(255, 255, 255, 0.08);
-}
 
 /* GPS Calibration Bar */
 .gps-adjust-bar {
@@ -4167,4 +4165,137 @@ body.live-round-active #live-tracker-view .card-body {
 .hole-rel-pill.rel-over {
   color: #f87171;
   background: rgba(239, 68, 68, 0.15);
+}
+
+/* ==========================================================
+   v120: Live Card Actions Bar (Anterior, Siguiente, Cancelar, Finalizar)
+   ========================================================== */
+.live-card-actions-bar {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0.45rem auto 0 auto;
+  box-sizing: border-box;
+}
+
+.live-card-nav-row {
+  display: grid;
+  grid-template-columns: 1fr 1.35fr;
+  gap: 0.5rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.live-card-sub-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.btn-live-nav-ctrl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.9rem !important;
+  font-size: 0.9rem !important;
+  font-weight: 800 !important;
+  border-radius: 0.8rem !important;
+  min-height: 42px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+.btn-live-nav-ctrl:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn-live-nav-ctrl.live-nav-prev {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #cbd5e1;
+}
+
+.btn-live-nav-ctrl.live-nav-prev:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.btn-live-nav-ctrl.live-nav-prev:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn-live-nav-ctrl.live-nav-next {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+.btn-live-nav-ctrl.live-nav-next:hover {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.45);
+}
+
+.btn-live-nav-ctrl.live-nav-next.btn-finish-mode {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  border-color: rgba(16, 185, 129, 0.6) !important;
+  box-shadow: 0 4px 18px rgba(16, 185, 129, 0.45) !important;
+  color: #ffffff !important;
+}
+
+.btn-live-sub {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.65rem;
+  font-weight: 700;
+  font-size: 0.76rem;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  user-select: none;
+  min-height: 34px;
+  box-sizing: border-box;
+}
+
+.btn-live-sub.cancel {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.32);
+  color: #f87171;
+}
+
+.btn-live-sub.cancel:hover,
+.btn-live-sub.cancel:active {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: rgba(239, 68, 68, 0.55);
+  transform: scale(0.98);
+}
+
+.btn-live-sub.finish {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #34d399;
+}
+
+.btn-live-sub.finish:hover,
+.btn-live-sub.finish:active {
+  background: rgba(16, 185, 129, 0.22);
+  border-color: rgba(16, 185, 129, 0.55);
+  transform: scale(0.98);
+}
+
+/* Ensure legacy bottom bar stays hidden so controls are exclusively inside card */
+.live-bottom-bar {
+  display: none !important;
 }
