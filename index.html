@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- CSS Stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=122">
+  <link rel="stylesheet" href="styles.css?v=123">
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Supabase JS Client CDN -->
@@ -387,10 +387,10 @@
               <button type="button" class="btn-gps-adjust" onclick="adjustActiveGpsDistance(5)" title="Sumar 5m">+5m</button>
             </div>
             <div class="gps-banner-actions">
-              <button type="button" class="btn btn-sm btn-primary btn-gps-finish" id="btn-gps-banner-finish">
+              <button type="button" class="btn btn-sm btn-primary btn-gps-finish" id="btn-gps-banner-finish" onclick="finishGpsShotTracking()">
                 <span>⏹️ Marcar Bola (Guardar)</span>
               </button>
-              <button type="button" class="btn btn-xs btn-outline btn-gps-cancel" id="btn-gps-banner-cancel" title="Cancelar medición">
+              <button type="button" class="btn btn-xs btn-outline btn-gps-cancel" id="btn-gps-banner-cancel" onclick="cancelGpsShotTracking()" title="Cancelar medición">
                 ✕ Cancelar
               </button>
             </div>
@@ -1043,7 +1043,7 @@
   </div>
 
   <!-- JavaScript Application -->
-  <script src="app.js?v=122"></script>
+  <script src="app.js?v=123"></script>
 
 
 
@@ -1105,13 +1105,13 @@
 
         <!-- Action Buttons -->
         <div style="width: 100%; display: flex; flex-direction: column; gap: 0.6rem;">
-          <button type="button" class="btn btn-primary btn-block" id="btn-gps-start-shot" style="padding: 0.85rem; font-size: 0.95rem; font-weight: 800; background: linear-gradient(135deg, #059669, #10b981);">
+          <button type="button" class="btn btn-primary btn-block" id="btn-gps-start-shot" onclick="startGpsShotTracking()" style="padding: 0.85rem; font-size: 0.95rem; font-weight: 800; background: linear-gradient(135deg, #059669, #10b981);">
             📍 Marcar Salida del Tiro
           </button>
-          <button type="button" class="btn btn-primary btn-block" id="btn-gps-finish-shot" style="display: none; padding: 0.85rem; font-size: 0.95rem; font-weight: 800; background: linear-gradient(135deg, #2563eb, #3b82f6);">
+          <button type="button" class="btn btn-primary btn-block" id="btn-gps-finish-shot" onclick="finishGpsShotTracking()" style="display: none; padding: 0.85rem; font-size: 0.95rem; font-weight: 800; background: linear-gradient(135deg, #2563eb, #3b82f6);">
             ⏹️ Llegué a la Bola (Guardar Golpe)
           </button>
-          <button type="button" class="btn btn-outline btn-block btn-sm" id="btn-gps-cancel-shot" style="display: none; color: #f87171; border-color: rgba(239, 68, 68, 0.4);">
+          <button type="button" class="btn btn-outline btn-block btn-sm" id="btn-gps-cancel-shot" onclick="cancelGpsShotTracking()" style="display: none; color: #f87171; border-color: rgba(239, 68, 68, 0.4);">
             ✕ Cancelar Medición
           </button>
         </div>

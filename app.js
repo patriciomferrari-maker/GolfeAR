@@ -3659,13 +3659,14 @@ function renderLiveHole() {
   }
 
   const isTrackingActive = !!activeGpsTracking;
-  const gpsBtnHTML = '<button type="button" class="live-meta-badge live-gps-badge' + (isTrackingActive ? ' active-tracking' : '') + '" id="btn-open-live-gps" title="Medir distancia de tiro con GPS">' +
-    '<span>📍 GPS</span>' +
+  const gpsLabel = isTrackingActive ? '📍 Midiendo...' : '📍 GPS';
+  const gpsBtnHTML = '<button type="button" class="live-meta-badge live-gps-badge' + (isTrackingActive ? ' active-tracking' : '') + '" id="btn-open-live-gps" onclick="openGpsModal()" title="Medir distancia de tiro con GPS">' +
+    '<span>' + gpsLabel + '</span>' +
   '</button>';
 
   const combinedMetaHTML = distBadgeHTML + gpsBtnHTML;
   if (heroMeta) heroMeta.innerHTML = combinedMetaHTML;
-  if (metaStrip) metaStrip.innerHTML = combinedMetaHTML;
+  if (metaStrip) metaStrip.innerHTML = '';
 
   const btnGps = document.getElementById('btn-open-live-gps');
   if (btnGps) {
@@ -7434,6 +7435,7 @@ function openGpsModal() {
   openModal('modal-gps-tracker');
   checkGpsSignal();
 }
+window.openGpsModal = openGpsModal;
 
 function checkGpsSignal() {
   if (!navigator.geolocation) {
@@ -7725,6 +7727,9 @@ function cancelGpsShotTracking() {
     showPremiumToast('Medición de tiro cancelada.');
   }
 }
+window.startGpsShotTracking = startGpsShotTracking;
+window.finishGpsShotTracking = finishGpsShotTracking;
+window.cancelGpsShotTracking = cancelGpsShotTracking;
 
 function updateGpsLiveDisplays() {
   if (!activeGpsTracking) return;
