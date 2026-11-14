@@ -18,3 +18,7 @@ Aplicación web integral para seguimiento, estadísticas y análisis de salidas 
 * Chart.js para gráficos analíticos
 * Supabase (PostgreSQL + Auth + Realtime)
 * Vercel (Hosting y despliegue continuo)
+
+## 📋 Bitácora de Errores y Prevención
+
+Para consultar el registro de errores resueltos, causas raíz y reglas para prevenir fallas a futuro, revisá el archivo [ERRORS.md](./ERRORS.md).
