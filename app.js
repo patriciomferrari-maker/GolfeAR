@@ -1983,13 +1983,13 @@ function getCompanionsFromRound(round) {
   if (!compMatch) return [];
   
   const text = compMatch[1].trim();
-  const pattern = /([^,()[\]]+(?:\([^)]*\))?)\s*\(([^)]+)\)\s*\[H:([0-9,]+)\]/g;
+  const pattern = /([^,()[\]]+(?:\([^)]*\))?)\s*\(([^)]+)\)\s*(?:\[H:([0-9,]+)\])?/g;
   const companions = [];
   let m;
   while ((m = pattern.exec(text)) !== null) {
     const name = m[1].trim();
     const summary = m[2].trim();
-    const holeScores = m[3].split(',').map(s => parseInt(s, 10) || 0);
+    const holeScores = m[3] ? m[3].split(',').map(s => parseInt(s, 10) || 0) : [];
     companions.push({
       name: name,
       summary: summary,
@@ -2637,62 +2637,40 @@ async function handleAddCourseSubmit(e) {
 }
 
 // View Scorecard Detail Dialog
-window.viewScorecard = function(roundId) {
+function viewScorecard(roundId) {
   const round = rounds.find(r => r.id === roundId);
   if (!round) return;
 
   activeViewedRound = round;
   setSelectedRoundForCard(round);
   openModal('modal-view-card');
-};
+}
+window.viewScorecard = viewScorecard;
 
 function setSelectedRoundForCard(round) {
-  const playedHolesCount = round.strokes.filter(s => s > 0).length;
-  const playedPar = round.playedPar || round.course.par;
+  const playedHolesCount = round.strokes ? round.strokes.filter(s => s > 0).length : 0;
+  const playedPar = round.playedPar || (round.course ? round.course.par : 72);
 
-  document.getElementById('view-card-title').textContent = '📊 Tarjeta: ' + round.course.name.split(' - ')[0] + (playedHolesCount < 18 ? ' (' + playedHolesCount + ' Hoyos)' : '');
+  document.getElementById('view-card-title').textContent = '📊 Tarjeta: ' + (round.course ? round.course.name.split(' - ')[0] : 'Partida') + (playedHolesCount < 18 ? ' (' + playedHolesCount + ' Hoyos)' : '');
 
-  
   const diff = round.totalStrokes - playedPar;
   const diffText = diff === 0 ? 'E' : (diff > 0 ? ('+' + diff) : diff);
   document.getElementById('view-card-score').textContent = round.totalStrokes + ' golpes (' + diffText + ')';
-  document.getElementById('view-card-diff').textContent = round.scoreDifferential.toFixed(1);
-  
+  document.getElementById('view-card-diff').textContent = (round.scoreDifferential !== undefined && round.scoreDifferential !== null) ? round.scoreDifferential.toFixed(1) : '-';
+
+  const ratingsEl = document.getElementById('view-card-ratings');
+  if (ratingsEl) {
+    if (round.course && (round.course.courseRating || round.course.slopeRating)) {
+      ratingsEl.textContent = `${round.course.courseRating || '-'} / ${round.course.slopeRating || '-'}`;
+    } else {
+      ratingsEl.textContent = '- / -';
+    }
+  }
+
   // Parse duration if saved in notes
   let durationStr = '';
   if (round.notes && round.notes.includes('Duración: ')) {
     durationStr = round.notes.split('Duración: ')[1].split(' | ')[0].trim();
-  }
-    const dateEl = document.getElementById('view-card-date');
-  if (dateEl) {
-    let paceText = '';
-    if (holeTimes) {
-      const validTimes = holeTimes.filter(t => t && t !== '-').map(t => parseInt(t) || 0).filter(m => m > 0);
-      if (validTimes.length > 0) {
-        const avg = (validTimes.reduce((a, b) => a + b, 0) / validTimes.length).toFixed(1);
-        paceText = ` (~${avg} min/hoyo)`;
-      }
-    }
-    dateEl.innerHTML = formatDate(round.date) + (durationStr ? (`<br><span style="color: #60a5fa; font-size: 0.82rem; font-weight: 700;">⏱️ ${durationStr}${paceText}</span>`) : '');
-  }
-
-  // Setup Solo vs Compare tabs if companions exist
-  setupCardCompanionView(round);
-
-    // Hide front or back nine tables if no holes were played in that section
-  const hasFront = round.strokes.slice(0, 9).some(s => s > 0);
-  const hasBack = round.strokes.slice(9, 18).some(s => s > 0);
-  
-  const frontWrapper = document.getElementById('view-card-front-wrapper');
-  const backWrapper = document.getElementById('view-card-back-wrapper');
-  if (frontWrapper && backWrapper) {
-    if (!hasFront && !hasBack) {
-      frontWrapper.style.display = 'block';
-      backWrapper.style.display = 'block';
-    } else {
-      frontWrapper.style.display = hasFront ? 'block' : 'none';
-      backWrapper.style.display = hasBack ? 'block' : 'none';
-    }
   }
 
   // Parse FIR values
@@ -2709,6 +2687,38 @@ function setSelectedRoundForCard(round) {
     const parts = round.notes.split(' | Hoyos: ');
     const timesPart = parts[1].split(' | ')[0];
     holeTimes = timesPart.split(',');
+  }
+
+  const dateEl = document.getElementById('view-card-date');
+  if (dateEl) {
+    let paceText = '';
+    if (holeTimes) {
+      const validTimes = holeTimes.filter(t => t && t !== '-').map(t => parseInt(t) || 0).filter(m => m > 0);
+      if (validTimes.length > 0) {
+        const avg = (validTimes.reduce((a, b) => a + b, 0) / validTimes.length).toFixed(1);
+        paceText = ` (~${avg} min/hoyo)`;
+      }
+    }
+    dateEl.innerHTML = formatDate(round.date) + (durationStr ? (`<br><span style="color: #60a5fa; font-size: 0.82rem; font-weight: 700;">⏱️ ${durationStr}${paceText}</span>`) : '');
+  }
+
+  // Setup Solo vs Compare tabs if companions exist
+  setupCardCompanionView(round);
+
+  // Hide front or back nine tables if no holes were played in that section
+  const hasFront = round.strokes.slice(0, 9).some(s => s > 0);
+  const hasBack = round.strokes.slice(9, 18).some(s => s > 0);
+  
+  const frontWrapper = document.getElementById('view-card-front-wrapper');
+  const backWrapper = document.getElementById('view-card-back-wrapper');
+  if (frontWrapper && backWrapper) {
+    if (!hasFront && !hasBack) {
+      frontWrapper.style.display = 'block';
+      backWrapper.style.display = 'block';
+    } else {
+      frontWrapper.style.display = hasFront ? 'block' : 'none';
+      backWrapper.style.display = hasBack ? 'block' : 'none';
+    }
   }
 
   // Render Front pars & strokes
@@ -3212,7 +3222,7 @@ function setupCardCompanionView(round) {
   if (comparePanel) comparePanel.style.display = 'none';
 }
 
-window.switchViewCardTab = function(mode) {
+function switchViewCardTab(mode) {
   const soloContent = document.getElementById('view-card-solo-content');
   const comparePanel = document.getElementById('view-card-compare-panel');
   const btnSolo = document.getElementById('btn-card-tab-solo');
@@ -3241,12 +3251,14 @@ window.switchViewCardTab = function(mode) {
       btnCompare.style.color = 'var(--text-muted)';
     }
   }
-};
+}
+window.switchViewCardTab = switchViewCardTab;
 
-window.viewScorecardCompare = function(roundId) {
+function viewScorecardCompare(roundId) {
   viewScorecard(roundId);
   switchViewCardTab('compare');
-};
+}
+window.viewScorecardCompare = viewScorecardCompare;
 
 function renderCardCompanionSelector(companions) {
   const container = document.getElementById('view-card-companion-selector');
@@ -5820,8 +5832,11 @@ function populateDuelosCompanions() {
   
   if (namesSet.has(currentVal)) {
     select.value = currentVal;
-  } else if (namesSet.size > 0 && !currentVal) {
-    // If only one friend or first load, keep prompt or select first
+    renderDueloComparison(currentVal);
+  } else if (namesSet.size > 0) {
+    const firstFriend = Array.from(namesSet).sort()[0];
+    select.value = firstFriend;
+    renderDueloComparison(firstFriend);
   } else {
     document.getElementById('duelo-dashboard').style.display = 'none';
     document.getElementById('duelo-empty-state').style.display = 'block';
